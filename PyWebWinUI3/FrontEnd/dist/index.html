@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<style>
+			@font-face {
+				font-family: 'Segoe Fluent Icons';
+				src: url(./SegoeFluentIcons.ttf);
+				ascent-override: 80%;
+			}
+			@font-face {
+				font-family: 'Pretendard Variable';
+				src: url(./PretendardVariable.ttf);
+			}
+			*,::before,::after{
+				font-family: 'Segoe Fluent Icons', "Pretendard Variable";
+				font-variation-settings: 'wght' 550;
+				background-color: transparent;
+				position: relative;
+				margin: 0;
+				padding: 0;
+				word-wrap: break-word;
+				overflow-wrap: break-word;
+				box-sizing: border-box;
+				line-height: 1.4;
+				color: inherit;
+				transition: all 0.1s ease-out;
+			}
+			::-webkit-scrollbar{
+					width: 4px;
+				}
+			::-webkit-scrollbar-thumb{
+				background-clip: padding-box;
+				border-radius: 7px;
+				border: 1px solid transparent;
+				background-color: var(--ScrollbarColor);
+			}
+			:disabled {
+				cursor: not-allowed;
+				pointer-events: none;
+				opacity: 0.5;
+			}
+			button{
+				cursor: pointer;
+				outline: none;
+				border: none;
+
+			}
+			input,textarea{
+				outline: none;
+				border: none;
+
+			}
+			:focus-visible::after {
+				z-index: 200;
+				content: "";
+				position: absolute;
+				inset: 0px;
+				border: 2px solid var(--TextFillColorPrimaryBrush);
+				border-radius: 4px;
+				pointer-events: none;
+			}
+		</style>
+		<script type="module" crossorigin src="/assets/index.fbcd3859.js"></script>
+		<link rel="stylesheet" href="/assets/index.5f301150.css">
+	</head>
+	<body>
+		
+	</body>
+</html>

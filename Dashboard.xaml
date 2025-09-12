@@ -1,0 +1,11 @@
+<Page path="dashboard" icon="" name="Dashboard">
+    <Space />
+    <Horizontal>
+        <Space />
+        <Vertical>
+            <Text type="title">Welcom to PyWebWinUI3</Text>
+        </Vertical>
+        <Space />
+    </Horizontal>
+    <Space />
+</Page>

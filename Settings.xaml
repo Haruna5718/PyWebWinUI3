@@ -1,0 +1,49 @@
+<Page path="settings" icon="" name="Settings" title="Settings">
+    <Box>
+        <Horizontal>
+            <Text>App theme</Text>
+            <Space />
+            <Select value="system.theme">
+                <Option value="dark">Dark</Option>
+                <Option value="light">Light</Option>
+                <Option value="system">Use system setting</Option>
+            </Select>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Auto start</Text>
+            <Space />
+            <Select value="settings.autoStart">
+                <Option value="disable">Disable Auto start</Option>
+                <Option value="steamvr">Start with SteamVR</Option>
+                <Option value="vrchat">Start with VRChat</Option>
+                <Option value="system">Start with System</Option>
+            </Select>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Check update</Text>
+            <Space />
+            <Vertical gap="0" aligin="right">
+                <Text type="description">Current:</Text>
+                <Text type="description">Latest:</Text>
+            </Vertical>
+            <Vertical gap="0">
+                <Text type="description">{system.version}</Text>
+                <Text type="description">{system.latest}</Text>
+            </Vertical>
+            <Switch value="settings.autoUpdate"/>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>OSC config</Text>
+            <Space />
+            <Input value="settings.osc.address" />
+            <Input value="settings.osc.send" />
+            <Input value="settings.osc.recive" />
+        </Horizontal>
+    </Box>
+</Page>

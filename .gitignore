@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.egg-info/
+.env
+.venv
+env/
+venv/
+*.sqlite3
+*.log
+
+# VSCode
+.vscode/
+
+# Svelte
+node_modules/
+public/build/
+*.svelte.js
+*.svelte.d.ts
+*.svelte.map
+
+# npm/yarn/pnpm
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Others
+.idea/
+*.swp
