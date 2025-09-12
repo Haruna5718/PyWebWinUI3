@@ -21,7 +21,7 @@ jobs:
           python-version: 3.9
 
       - name: Install dependencies
-        run: pip3 install wheel twine
+        run: pip3 install build twine
 
       - name: Build
         run: python3 -m build
