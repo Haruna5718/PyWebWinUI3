@@ -1,1 +1,1 @@
-recursive-include PyWebWinUI3/web *
+recursive-include pywebwinui3/web *
