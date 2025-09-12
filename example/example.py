@@ -2,10 +2,10 @@ import sys
 from pathlib import Path
 
 try:
-    from ..PyWebWinUI3 import MainWindow, loadPage, Notice
+    from ..pywebwinui3 import MainWindow, loadPage, Notice
 except ImportError:
     sys.path.append(str(Path(__file__).parent.parent))
-    from PyWebWinUI3 import MainWindow, loadPage, Notice
+    from pywebwinui3 import MainWindow, loadPage, Notice
 
 if __name__ == "__main__":
     # app = MainWindow("PyWebWinUI3", "http://localhost:3000/#dashboard", "debug" in sys.argv)
@@ -64,10 +64,15 @@ if __name__ == "__main__":
     app.setValue("test.noticeTitle", "Title")
     app.setValue("test.noticeDescription", "Description")
 
-    app.events["setValue"].append(["test.noticeCreate",lambda k,v: app.notice(app.values["test.noticeType"],app.values["test.noticeTitle"],app.values["test.noticeDescription"])])
-    app.events["setValue"].append(["test.noticeSample",lambda k,v: app.notice(Notice.Information,"Title","This is sample information notice")])
-    app.events["setValue"].append(["test.noticeSample",lambda k,v: app.notice(Notice.Success,"Title","This is sample success notice")])
-    app.events["setValue"].append(["test.noticeSample",lambda k,v: app.notice(Notice.Warning,"Title","This is sample warning notice")])
-    app.events["setValue"].append(["test.noticeSample",lambda k,v: app.notice(Notice.Error,"Title","This is sample error notice")])
+    @app.onValueChange("test.noticeSample")
+    def notiveSample(*_):
+        app.notice(Notice.Information,"Title","This is sample information notice")
+        app.notice(Notice.Success,"Title","This is sample success notice")
+        app.notice(Notice.Warning,"Title","This is sample warning notice")
+        app.notice(Notice.Error,"Title","This is sample error notice")
+
+    @app.onValueChange("test.noticeCreate")
+    def notiveCreate(*_):
+        app.notice(app.values["test.noticeType"],app.values["test.noticeTitle"],app.values["test.noticeDescription"])
 
     app.start("dashboard")

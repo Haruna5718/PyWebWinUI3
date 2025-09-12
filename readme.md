@@ -1,37 +1,64 @@
 
 # PyWebWinUI3
 
-PyWebWinUI3는 Python에서 [pywebview](https://pywebview.flowrl.com/)를 활용하여 WinUI3 스타일의 데스크톱 UI를 쉽게 구성할 수 있도록 도와주는 프로젝트입니다.
+PyWebWinUI3 is a project that helps you easily build WinUI3-style desktop UIs in Python using [pywebview](https://pywebview.flowrl.com/).
 
-## 주요 특징
-- **WinUI3 스타일**의 현대적이고 직관적인 UI 컴포넌트 제공
-- Python 코드로 데스크톱 앱을 쉽고 빠르게 개발 가능
-- Svelte 기반의 FrontEnd와 연동
-- 커스텀 폰트 및 Fluent 아이콘 지원
+## Features
+- Modern and intuitive **WinUI3-style** UI components
+- Rapid desktop app development with Python
+- Svelte-based FrontEnd integration
+- Custom fonts and Fluent icon support
 
-## 폴더 구조
+## Installation & Build
+You can install PyWebWinUI3 directly from PyPI:
+```bash
+pip install PyWebWinUI3
 ```
-PyWebWinUI3/
-├── core.py   # 핵심 Python 모듈
-└── FrontEnd/ # Svelte 기반 프론트엔드
+
+## Usage
+You can define your UI using XAML files and control the app with Python. See the `example/` folder for more details.
+
+### Minimal Example
+```python
+from pywebwinui3 import MainWindow, loadPage
+
+app = MainWindow("PyWebWinUI3", debug=True)
+app.addSettings(loadPage("Settings.xaml"))
+app.addPage(loadPage("Dashboard.xaml"))
+app.addPage(loadPage("Test.xaml"))
+
+# Set values for UI bindings
+app.setValue("system.theme", "dark")
+
+app.start("dashboard")
 ```
 
-## 설치 및 실행 방법
-1. **의존성 설치**
-	```bash
-	pip install pywebview
-	```
-2. **프론트엔드 빌드** (FrontEnd 폴더에서)
-	```bash
-	npm install
-	npm run build
-	```
+### XAML Example (Settings.xaml)
+```xml
+<Page path="settings" icon="\ue713" name="Settings" title="Settings">
+	<Box>
+		<Horizontal>
+			<Text>App theme</Text>
+			<Space />
+			<Select value="system.theme">
+				<Option value="dark">Dark</Option>
+				<Option value="light">Light</Option>
+				<Option value="system">Use system setting</Option>
+			</Select>
+		</Horizontal>
+	</Box>
+	<!-- ...more UI elements... -->
+</Page>
+```
 
-## 기여
-- PR 및 이슈 환영합니다!
-- Svelte 컴포넌트, Python 모듈, UI 개선 등 다양한 기여가 가능합니다.
+### More
+- See `example/example.py` and the XAML files in `example/` for advanced usage.
 
-## 라이선스
+## Contributing
+- PRs and issues are welcome!
+- You can contribute Svelte components, Python modules, UI improvements, and more.
+
+## License
 Apache-2.0
 ---
-> 이 README는 AI(GitHub Copilot)를 활용해 작성되었습니다.
+> This README was generated using AI (GitHub Copilot).

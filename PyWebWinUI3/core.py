@@ -71,9 +71,7 @@ class MainWindow:
 			"system.settings": None,
 			"system.nofication": []
 		}
-		self.events = {
-			"setValue":[]
-		}
+		self.events:dict[str,any] = {}
 
 		logging.basicConfig(
 			level=logging.DEBUG,
@@ -96,15 +94,20 @@ class MainWindow:
 			**self.values,
 			"system.isOnTop": self._window.on_top,
 		}
+	
+	def onValueChange(self, valueName):
+		def decorator(func):
+			self.events.setdefault("setValue", {}).setdefault(valueName, []).append(func)
+			return func
+		return decorator
 
 	def setValue(self, key, value, sync=True):
 		self.values[key]=value
 		if sync and self._window:
 			threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
 			logger.debug(f"Value synced: {key}")
-		for event in self.events["setValue"]:
-			if event[0]==key:
-				event[1](key,value)
+		for event in self.events.get("setValue",{}).get(key,[]):
+			event(key,value)
 
 	def themeChanged(self, color):
 		if color != self.values['system.color']:
