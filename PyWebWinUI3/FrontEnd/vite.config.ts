@@ -17,14 +17,7 @@ export default defineConfig({
       }
     })],
     build: {
-      minify: 'terser',
-      terserOptions: {
-        mangle: {
-          keep_fnames: true
-        },
-        compress: {
-          keep_fnames: true
-        }
-      }
+      outDir: '../web',
+      emptyOutDir: true,
     },
   })

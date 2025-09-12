@@ -30,3 +30,6 @@ Thumbs.db
 # Others
 .idea/
 *.swp
+
+build/
+dist/

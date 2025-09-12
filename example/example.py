@@ -1,13 +1,15 @@
 import sys
+from pathlib import Path
 
 try:
-    from .PyWebWinUI3 import MainWindow, loadPage, Notice
+    from ..PyWebWinUI3 import MainWindow, loadPage, Notice
 except ImportError:
+    sys.path.append(str(Path(__file__).parent.parent))
     from PyWebWinUI3 import MainWindow, loadPage, Notice
 
 if __name__ == "__main__":
     # app = MainWindow("PyWebWinUI3", "http://localhost:3000/#dashboard", "debug" in sys.argv)
-    app = MainWindow("PyWebWinUI3", "./PyWebWinUI3/FrontEnd/dist/index.html#dashboard", "debug" in sys.argv)
+    app = MainWindow("PyWebWinUI3", debug="debug" in sys.argv)
 
     app.addSettings(loadPage("Settings.xaml"))
     app.addPage(loadPage("Dashboard.xaml"))
@@ -68,4 +70,4 @@ if __name__ == "__main__":
     app.events["setValue"].append(["test.noticeSample",lambda k,v: app.notice(Notice.Warning,"Title","This is sample warning notice")])
     app.events["setValue"].append(["test.noticeSample",lambda k,v: app.notice(Notice.Error,"Title","This is sample error notice")])
 
-    app.start()
+    app.start("dashboard")

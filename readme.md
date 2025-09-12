@@ -32,6 +32,6 @@ PyWebWinUI3/
 - Svelte 컴포넌트, Python 모듈, UI 개선 등 다양한 기여가 가능합니다.
 
 ## 라이선스
-MIT License
+Apache-2.0
 ---
 > 이 README는 AI(GitHub Copilot)를 활용해 작성되었습니다.

@@ -59,24 +59,13 @@ class Notice:
 	Critical = 3
 
 class MainWindow:
-	def __init__(self, title, url, debug=False, log="latest.log"):
-		self.debug = debug
-		self.log = log
-		logging.basicConfig(
-			level=logging.DEBUG,
-			format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
-			datefmt="%H:%M:%S",
-			handlers=[
-				logging.FileHandler("latest.log", mode="w", encoding="utf-8"),
-				logging.StreamHandler()
-			]
-		)
+	def __init__(self, title, debug=False, url:str|Path=None, log:str|Path=None):
+		self.url = url or (Path(__file__).parent/"web"/"index.html").absolute()
 		self._window: webview.Window = None
-		self.api = self
-		self.url = url
+		self.debug = debug
 		self.values = {
 			"system.title": title,
-			"system.theme": "dark",
+			"system.theme": "system",
 			"system.color": getSystemAccentColor(),
 			"system.pages": None,
 			"system.settings": None,
@@ -85,6 +74,16 @@ class MainWindow:
 		self.events = {
 			"setValue":[]
 		}
+
+		logging.basicConfig(
+			level=logging.DEBUG,
+			format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+			datefmt="%H:%M:%S",
+			handlers=[
+				*([logging.FileHandler(log, mode="w", encoding="utf-8")] if log else []),
+				logging.StreamHandler()
+			]
+		)
 
 	def notice(self, level:int, title:str, description:str):
 		self.setValue('system.nofication', [*self.values["system.nofication"],[level,title,description]])
@@ -131,9 +130,9 @@ class MainWindow:
 			pageData.get("attr").get("path"):pageData
 		})
 
-	def start(self):
+	def start(self, page=None):
 		logging.getLogger("pywebview").setLevel(logging.DEBUG)
-		self._window = webview.create_window(self.values["system.title"], self.url, js_api=self.api, background_color="#202020", frameless=True, easy_drag=False, draggable=True, text_select=True, width=900, height=600)
+		self._window = webview.create_window(self.values["system.title"], f"{self.url}#{page}", js_api=self, background_color="#202020", frameless=True, easy_drag=False, draggable=True, text_select=True, width=900, height=600)
 		logger.debug("window created")
 		mimetypes.add_type("application/javascript", ".js")
 		self.destroy = self._window.destroy
