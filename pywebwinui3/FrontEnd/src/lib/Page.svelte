@@ -56,6 +56,7 @@
             flex-grow: 1;
             gap: 4px;
             padding: 36px 32px 36px 36px;
+            align-items: center;
         }
     }
 	@keyframes PageLoadAnim {

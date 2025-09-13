@@ -4,9 +4,9 @@
 	export const values = writable({
 		"system.goBack": true,
 		"system.pinTop": true,
-		"system.title": "PyWebWinUI3",
-		"system.icon": "./favicon.ico",
-		"system.theme": "dark",
+		"system.title": undefined,
+		"system.icon": undefined,
+		"system.theme": "system",
 		"system.color": ["#fff","#fff","#fff","#888","#000","#000","#000"],
 		"system.isOnTop": false,
 		"system.pages": null,
@@ -64,11 +64,11 @@
 			</button>
 		{/if}
 		<div class="title pywebview-drag-region">
-			<img src={$values["system.icon"]} alt="">
-			<p>{$values["system.title"]}</p>
+			<img src={$values["system.icon"]} alt="" style="opacity: {$values["system.icon"]?1:0};"/>
+			<p>{$values["system.title"]??""}</p>
 		</div>
 		{#if $values["system.pinTop"]}
-			<button on:click={()=>window.pywebview.api.ontop(!$values["system.isOnTop"])}>{#if $values["system.isOnTop"]}<span style="position:absolute;left:8px;"></span>{/if}</button>
+			<button on:click={()=>window.pywebview.api.setTop(!$values["system.isOnTop"])}>{#if $values["system.isOnTop"]}<span style="position:absolute;left:8px;"></span>{/if}</button>
 		{/if}
 		<button on:click={()=>window.pywebview.api.minimize()}></button>
 		<button on:click={()=>window.pywebview.api.destroy()}></button>

@@ -122,7 +122,7 @@ class MainWindow:
 			logger.debug("Accent color change detected")
 			self.setValue('system.color', color)
 
-	def ontop(self, State:bool):
+	def setTop(self, State:bool):
 		threading.Thread(target=lambda: setattr(self._window, "on_top", State), daemon=True).start()
 		return self.setValue('system.isOnTop', self._window.on_top)
 	

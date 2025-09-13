@@ -20,7 +20,6 @@
         word-wrap: break-word;
 		overflow-wrap: anywhere;
         display: flex;
-        align-self: center;
         font-size: 16px;
     }
     a{
