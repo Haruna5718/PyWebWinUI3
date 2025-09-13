@@ -89,9 +89,9 @@ class MainWindow:
 			return func
 		return decorator
 	
-	def onSetup(self, valueName):
+	def onSetup(self):
 		def decorator(func):
-			self.events.setdefault("setup", {}).setdefault(valueName, []).append(func)
+			self.events.setdefault("setup", []).append(func)
 			return func
 		return decorator
 
