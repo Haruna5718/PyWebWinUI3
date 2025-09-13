@@ -83,23 +83,31 @@ class MainWindow:
 			]
 		)
 
+	def onValueChange(self, valueName):
+		def decorator(func):
+			self.events.setdefault("setValue", {}).setdefault(valueName, []).append(func)
+			return func
+		return decorator
+	
+	def onSetup(self, valueName):
+		def decorator(func):
+			self.events.setdefault("setup", {}).setdefault(valueName, []).append(func)
+			return func
+		return decorator
+
 	def notice(self, level:int, title:str, description:str):
 		self.setValue('system.nofication', [*self.values["system.nofication"],[level,title,description]])
 
 	def setup(self):
 		systemMessageListener(self.themeChanged)
+		for event in self.events.get("setup",[]):
+			threading.Thread(target=event, daemon=True).start()
 	
 	def init(self):
 		return {
 			**self.values,
 			"system.isOnTop": self._window.on_top,
 		}
-	
-	def onValueChange(self, valueName):
-		def decorator(func):
-			self.events.setdefault("setValue", {}).setdefault(valueName, []).append(func)
-			return func
-		return decorator
 
 	def setValue(self, key, value, sync=True):
 		self.values[key]=value
@@ -107,7 +115,7 @@ class MainWindow:
 			threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
 			logger.debug(f"Value synced: {key}")
 		for event in self.events.get("setValue",{}).get(key,[]):
-			event(key,value)
+			threading.Thread(target=event, args=(key,value,), daemon=True).start()
 
 	def themeChanged(self, color):
 		if color != self.values['system.color']:
