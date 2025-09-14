@@ -11,6 +11,7 @@ import win32api
 import xml.etree.ElementTree
 from pathlib import Path
 import logging
+import fnmatch
 
 logger = logging.getLogger("pywebwinui3")
 logger.setLevel(logging.DEBUG)
@@ -111,8 +112,10 @@ class MainWindow:
 		self.values[key]=value
 		if sync and self._window:
 			threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
-		for event in self.events.get("setValue",{}).get(key,[]):
-			threading.Thread(target=event, args=(key,value,), daemon=True).start()
+		for pattern, callbacks in self.events.get("setValue",{}).items():
+			if fnmatch.fnmatch(key, pattern):
+				for callback in callbacks:
+					threading.Thread(target=callback, args=(key,value,), daemon=True).start()
 
 	def themeChanged(self, color):
 		if color != self.values['system.color']:

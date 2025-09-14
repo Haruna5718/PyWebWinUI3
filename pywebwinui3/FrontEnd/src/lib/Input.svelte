@@ -11,7 +11,10 @@
         placeholder={data.text}
         on:input={(e)=>{window.setValue(data.attr.value, e.currentTarget.value)}}
         value={$values[data.attr.value]}
-        style={data.attr.style}/>
+        style="
+            width: {data.attr.width ?? 'auto'};
+            height: {data.attr.height ?? 'auto'};
+        "/>
     {#if data.attr.type=="number"}
         <span class="buttons">
             <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
