@@ -4,8 +4,8 @@
 	export const values = writable({
 		"system.goBack": true,
 		"system.pinTop": true,
-		"system.title": undefined,
-		"system.icon": undefined,
+		"system.title": null,
+		"system.icon": null,
 		"system.theme": "system",
 		"system.color": ["#fff","#fff","#fff","#888","#000","#000","#000"],
 		"system.isOnTop": false,
@@ -16,6 +16,8 @@
 
 	export const format = (text) => {
 		const v = get(values);
+		let t = text.match(/^(?<!\\)\{([^}]+)\}$/)
+		if(t) return v[t[1]]
         return text.replace(/(?<!\\){(.*?)}/g, (m, k) => v[k] ?? m).replace(/\\({.*?})/g, "$1");
     };
 </script>
@@ -25,6 +27,7 @@
 	let isNavOpen = true;
 
 	window.setValue = (target:string, value:any, sync=true) => {
+		if(!target) return;
 		values.update(dict=>{
 			return { ...dict, [target]: value };
 		});

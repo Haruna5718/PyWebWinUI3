@@ -2,7 +2,7 @@
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 </script>
-<span class="main {data.attr.type}">
+<span class="main {data.attr.type}" class:disabled={Boolean(data.attr.disabled)}>
     <span />
     <div style="width: {$values[data.attr.value]??0}%"/>
 </span>

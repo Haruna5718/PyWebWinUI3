@@ -8,7 +8,7 @@
         indeterminate = value==2
     }
 </script>
-<span>
+<span class:disabled={Boolean(data.attr.disabled)}>
     {#if data.text}
         <label for="check.{data.attr.value}" style="
             order: {data.attr.aligin=="left"?0:2};

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { values, format } from '../App.svelte';
+    import { format } from '../App.svelte';
 
     import Component from './Component.svelte';
     
@@ -24,13 +24,6 @@
     import If from './If.svelte';
     import Repeat from './Repeat.svelte';
 
-    // type layoutDataType = {
-    //     tag: string,
-    //     attr: {[key: string]: string},
-    //     text: string,
-    //     child: layoutDataType[];
-    // };
-
     const Components = {
         Text,
         Line,
@@ -54,16 +47,7 @@
         Repeat
     };
 
-    // function SetRepeatData(data: layoutDataType, ind: number): layoutDataType {
-    //     Object.keys(data.Attr).forEach((key)=>{
-    //         data.Attr[key] = data.Attr[key].replaceAll(/\{i\}/g, `${ind}`);
-    //     })
-    //     data.Text = data.Text.replaceAll(/\{i\}/g, `${ind}`);
-    //     data.Children = data.Children.map((child) => SetRepeatData(child, ind));
-    //     return data;
-    // }
-    
-    export let rawData: { [key: string]: any } = undefined; //:layoutDataType;
+    export let rawData: { [key: string]: any } = undefined; 
     export let formatData: { [key: string]: any } = undefined;
 
 </script>

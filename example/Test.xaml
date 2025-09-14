@@ -1,164 +1,6 @@
 <Page path="test" name="Test" badge="{test.badge}" state="{test.state}">
     <Box>
         <Horizontal>
-            <Text>Text</Text>
-            <Space />
-            <Select value="test.textType">
-                Type
-                <Option value="default">Default</Option>
-                <Option value="title">Title</Option>
-                <Option value="description">Description</Option>
-            </Select>
-            <Input value="test.textContent">Content</Input>
-            <Input value="test.textUrl">URL</Input>
-        </Horizontal>
-        <Horizontal>
-            <Text type="{test.textType}" url="{test.textUrl}">{test.textContent}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Input</Text>
-            <Space />
-            <Select value="test.inputType">
-                Type
-                <Option value="text">Text</Option>
-                <Option value="number">Number</Option>
-            </Select>
-            <Input value="test.InputText" />
-        </Horizontal>
-        <Horizontal>
-            <Input value="test.input" type="{test.inputType}">{test.InputText}</Input>
-            <Space />
-            <Text type="description">Value: {test.input}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Button</Text>
-            <Space />
-            <Select value="test.buttonType">
-                Type
-                <Option value="click">Click</Option>
-                <Option value="toggle">Toggle</Option>
-                <Option value="link">Link</Option>
-            </Select>
-            <Input value="test.buttonUrl">URL</Input>
-        </Horizontal>
-        <Horizontal>
-            <Button value="test.button" type="{test.buttonType}" url="{test.buttonUrl}">Button</Button>
-            <Space />
-            <Text type="description">Value: {test.button}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Select</Text>
-            <Space />
-            <Input value="test.selectText">Text</Input>
-        </Horizontal>
-        <Horizontal>
-            <Select value="test.select">
-                {test.selectText}
-                <Option value="option1">Option1</Option>
-                <Option value="option2">Option2</Option>
-                <Option value="option3">Option3</Option>
-            </Select>
-            <Space />
-            <Text type="description">Value: {test.select}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Slider</Text>
-            <Space />
-            <Select value="test.sliderType">
-                Type
-                <Option value="horizontal">Horizontal</Option>
-                <Option value="vertical">Vertical</Option>
-            </Select>
-        </Horizontal>
-        <Horizontal>
-            <Slider value="test.slider" type="{test.sliderType}"/>
-            <Space />
-            <Text type="description">Value: {test.slider}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>ProgressBar</Text>
-            <Space />
-            <Slider value="test.progress"/>
-            <Select value="test.progressType">
-                Type
-                <Option value="progress">Progress</Option>
-                <Option value="running">Running</Option>
-                <Option value="paused">Paused</Option>
-                <Option value="success">Success</Option>
-                <Option value="error">Error</Option>
-            </Select>
-        </Horizontal>
-        <Horizontal>
-            <Progressbar type="{test.progressType}" value="test.progress" />
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Switch</Text>
-            <Space />
-            <Select value="test.switchAligin">
-                Aligin
-                <Option value="right">Right</Option>
-                <Option value="left">Left</Option>
-            </Select>
-        </Horizontal>
-        <Horizontal>
-            <Switch value="test.switch" aligin="{test.switchAligin}" />
-            <Space />
-            <Text type="description">Value: {test.switch}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Check</Text>
-            <Space />
-            <Select value="test.checkType">
-                Type
-                <Option value="two">Two</Option>
-                <Option value="three">Three</Option>
-            </Select>
-            <Select value="test.checkAligin">
-                Aligin
-                <Option value="right">Right</Option>
-                <Option value="left">Left</Option>
-            </Select>
-        </Horizontal>
-        <Horizontal>
-            <Check value="test.checkd" type="{test.checkType}" aligin="{test.checkAligin}">Option</Check>
-            <Space />
-            <Text type="description">Value: {test.checkd}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
-            <Text>Radio</Text>
-            <Space />
-            <Select value="test.radioAligin">
-                Aligin
-                <Option value="right">Right</Option>
-                <Option value="left">Left</Option>
-            </Select>
-        </Horizontal>
-        <Horizontal>
-            <Radio value="option1" group="test.radio" aligin="{test.radioAligin}">Option1</Radio>
-            <Radio value="option2" group="test.radio" aligin="{test.radioAligin}">Option2</Radio>
-            <Radio value="option3" group="test.radio" aligin="{test.radioAligin}">Option3</Radio>
-            <Space />
-            <Text type="description">Value: {test.radio}</Text>
-        </Horizontal>
-    </Box>
-    <Box>
-        <Horizontal>
             <Text>Badge</Text>
             <Space />
             <Select value="test.state">
@@ -191,6 +33,172 @@
             <Input value="test.noticeDescription">Description</Input>
         </Horizontal>
     </Box>
+    <Line />
+    <Box>
+        <Horizontal>
+            <Text>Disable</Text>
+            <Space />
+            <Switch value="test.disabled"/>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Text</Text>
+            <Space />
+            <Select value="test.textType">
+                Type
+                <Option value="default">Default</Option>
+                <Option value="title">Title</Option>
+                <Option value="description">Description</Option>
+            </Select>
+            <Input value="test.textContent">Content</Input>
+            <Input value="test.textUrl">URL</Input>
+        </Horizontal>
+        <Horizontal>
+            <Text type="{test.textType}" url="{test.textUrl}" disabled="{test.disabled}">{test.textContent}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Input</Text>
+            <Space />
+            <Select value="test.inputType">
+                Type
+                <Option value="text">Text</Option>
+                <Option value="number">Number</Option>
+            </Select>
+            <Input value="test.InputText" />
+        </Horizontal>
+        <Horizontal>
+            <Input value="test.input" type="{test.inputType}" disabled="{test.disabled}">{test.InputText}</Input>
+            <Space />
+            <Text type="description">Value: {test.input}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Button</Text>
+            <Space />
+            <Select value="test.buttonType">
+                Type
+                <Option value="click">Click</Option>
+                <Option value="toggle">Toggle</Option>
+                <Option value="link">Link</Option>
+            </Select>
+            <Input value="test.buttonUrl">URL</Input>
+        </Horizontal>
+        <Horizontal>
+            <Button value="test.button" type="{test.buttonType}" url="{test.buttonUrl}" disabled="{test.disabled}">Button</Button>
+            <Space />
+            <Text type="description">Value: {test.button}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Select</Text>
+            <Space />
+            <Input value="test.selectText">Text</Input>
+        </Horizontal>
+        <Horizontal>
+            <Select value="test.select" disabled="{test.disabled}">
+                {test.selectText}
+                <Option value="option1">Option1</Option>
+                <Option value="option2">Option2</Option>
+                <Option value="option3">Option3</Option>
+            </Select>
+            <Space />
+            <Text type="description">Value: {test.select}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Slider</Text>
+            <Space />
+            <Select value="test.sliderType">
+                Type
+                <Option value="horizontal">Horizontal</Option>
+                <Option value="vertical">Vertical</Option>
+            </Select>
+        </Horizontal>
+        <Horizontal>
+            <Slider value="test.slider" type="{test.sliderType}" disabled="{test.disabled}"/>
+            <Space />
+            <Text type="description">Value: {test.slider}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>ProgressBar</Text>
+            <Space />
+            <Slider value="test.progress"/>
+            <Select value="test.progressType">
+                Type
+                <Option value="progress">Progress</Option>
+                <Option value="running">Running</Option>
+                <Option value="paused">Paused</Option>
+                <Option value="success">Success</Option>
+                <Option value="error">Error</Option>
+            </Select>
+        </Horizontal>
+        <Horizontal>
+            <Progressbar type="{test.progressType}" value="test.progress" disabled="{test.disabled}"/>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Switch</Text>
+            <Space />
+            <Select value="test.switchAligin">
+                Aligin
+                <Option value="right">Right</Option>
+                <Option value="left">Left</Option>
+            </Select>
+        </Horizontal>
+        <Horizontal>
+            <Switch value="test.switch" aligin="{test.switchAligin}" disabled="{test.disabled}"/>
+            <Space />
+            <Text type="description">Value: {test.switch}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Check</Text>
+            <Space />
+            <Select value="test.checkType">
+                Type
+                <Option value="two">Two</Option>
+                <Option value="three">Three</Option>
+            </Select>
+            <Select value="test.checkAligin">
+                Aligin
+                <Option value="right">Right</Option>
+                <Option value="left">Left</Option>
+            </Select>
+        </Horizontal>
+        <Horizontal>
+            <Check value="test.checkd" type="{test.checkType}" aligin="{test.checkAligin}" disabled="{test.disabled}">Option</Check>
+            <Space />
+            <Text type="description">Value: {test.checkd}</Text>
+        </Horizontal>
+    </Box>
+    <Box>
+        <Horizontal>
+            <Text>Radio</Text>
+            <Space />
+            <Select value="test.radioAligin">
+                Aligin
+                <Option value="right">Right</Option>
+                <Option value="left">Left</Option>
+            </Select>
+        </Horizontal>
+        <Horizontal>
+            <Radio value="option1" group="test.radio" aligin="{test.radioAligin}" disabled="{test.disabled}">Option1</Radio>
+            <Radio value="option2" group="test.radio" aligin="{test.radioAligin}" disabled="{test.disabled}">Option2</Radio>
+            <Radio value="option3" group="test.radio" aligin="{test.radioAligin}" disabled="{test.disabled}">Option3</Radio>
+            <Space />
+            <Text type="description">Value: {test.radio}</Text>
+        </Horizontal>
+    </Box>
     <Box>
         <Horizontal>
             <Text>If</Text>
@@ -198,7 +206,7 @@
             <Switch value="test.if" aligin="left"/>
         </Horizontal>
         <Horizontal>
-            <If value="test.if">
+            <If value="test.if" disabled="{test.disabled}">
                 <True>
                     <Text>
                         This text is displayed when value is True
@@ -219,7 +227,7 @@
             <Input value="test.repeat">Amount</Input>
         </Horizontal>
         <Horizontal>
-            <Repeat value="test.repeat">
+            <Repeat value="test.repeat" disabled="{test.disabled}">
                 <Text>Children {i}</Text>
             </Repeat>
         </Horizontal>
@@ -231,7 +239,7 @@
             <Input value="test.image"/>
         </Horizontal>
         <Horizontal>
-            <Image source="{test.image}"/>
+            <Image source="{test.image}" disabled="{test.disabled}"/>
         </Horizontal>
     </Box>
     <Box>
@@ -241,7 +249,7 @@
             <Input value="test.webview"/>
         </Horizontal>
         <Horizontal>
-            <Webview source="{test.webview}"/>
+            <Webview source="{test.webview}" disabled="{test.disabled}"/>
         </Horizontal>
     </Box>
     <!-- <Box>

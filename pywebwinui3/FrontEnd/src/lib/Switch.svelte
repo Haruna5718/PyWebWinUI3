@@ -2,7 +2,7 @@
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 </script>
-<span class="main">
+<span class="main" class:disabled={Boolean(data.attr.disabled)}>
     <span style="
         order: {data.attr.aligin=="right"?2:0};
         align-items: {data.attr.aligin=="right"?'flex-start':'flex-end'};

@@ -7,7 +7,7 @@
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
 <span class="container" bind:this={main}>
-    <button class="main" style={data.attr.style} on:click={()=>{open=!open}}>
+    <button class="main" on:click={()=>{open=!open}}>
         <p>
             {data.child.find(child=>child.attr.value==$values[data.attr.value])?.text}
         </p>

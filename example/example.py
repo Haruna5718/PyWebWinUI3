@@ -8,15 +8,16 @@ except ImportError:
     from pywebwinui3 import MainWindow, loadPage, Notice
 
 if __name__ == "__main__":
-    # app = MainWindow("PyWebWinUI3", "http://localhost:3000/#dashboard", "debug" in sys.argv)
-    app = MainWindow("PyWebWinUI3", debug="debug" in sys.argv)
+    app = MainWindow("PyWebWinUI3", "debug" in sys.argv, "http://localhost:3000")
+    # app = MainWindow("PyWebWinUI3", debug="debug" in sys.argv)
 
     app.addSettings(loadPage("Settings.xaml"))
     app.addPage(loadPage("Dashboard.xaml"))
     app.addPage(loadPage("Test.xaml"))
 
-    app.setValue("system.version", "1.0.0")
-    app.setValue("system.latest", "1.0.0")
+    app.setValue("system.icon", "./favicon.ico")
+
+    app.setValue("test.disabled", False)
 
     app.setValue("test.textType", "default")
     app.setValue("test.textContent", "This is Text With URL")

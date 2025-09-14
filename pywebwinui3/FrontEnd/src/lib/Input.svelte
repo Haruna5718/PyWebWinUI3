@@ -2,7 +2,10 @@
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 </script>
-<span>
+<span class:disabled={Boolean(data.attr.disabled)} style="
+    width: {data.attr.width ?? 'auto'};
+    height: {data.attr.height ?? 'auto'};
+">
     <input
         type={data.attr.type}
         placeholder={data.text}
@@ -63,8 +66,6 @@
     }
     input{
         resize: none;
-
-        width: 160px;
         height: fit-content;
         padding: 5px 6px 6px 6px;
         border-radius: 4px;

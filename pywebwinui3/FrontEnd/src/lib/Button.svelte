@@ -4,14 +4,16 @@
     const click = () => {
         if(data.attr.type=="toggle"){
             window.setValue(data.attr.value, !$values[data.attr.value])
-        }else if(data.attr.type=="link"){
-            window.open(data.attr.url,"_blank")
         }else{
+            if(data.attr.url) window.open(data.attr.url,"_blank")
             window.setValue(data.attr.value, true)
         }
     }
 </script>
-<button class="main" class:select={data.attr.type=="toggle"&&$values[data.attr.value]} style={data.attr.style} on:click={click}>
+<button class="main" class:select={data.attr.type=="toggle"&&$values[data.attr.value]} disabled={Boolean(data.attr.disabled)} on:click={click} style="
+    width: {data.attr.width ?? 'auto'};
+    height: {data.attr.height ?? 'auto'};
+">
     {data.text}{data.attr.type=="link"?" ":""}
     <slot />
 </button>

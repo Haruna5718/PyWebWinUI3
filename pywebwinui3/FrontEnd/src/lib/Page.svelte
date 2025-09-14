@@ -1,7 +1,7 @@
 <script lang="ts">
     export let data: { [key: string]: any };
 </script>
-<div class="page" style={data.attr.style} class:header={data.attr.title}>
+<div class="page" class:header={data.attr.title}>
     {#if data.attr.title}
         <p class="title">{data.attr.title}</p>
     {/if}

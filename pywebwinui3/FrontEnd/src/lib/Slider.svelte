@@ -11,8 +11,8 @@
     }
     let click = false;
 </script>
-<span class="container" class:vertical={data.attr.type=="vertical"}>
-    <span class="main">
+<span class="container" class:vertical={data.attr.type=="vertical"} class:disabled={Boolean(data.attr.disabled)}>
+    <span class="main" style="width: {data.attr.width ?? 'auto'};">
         <span style="width: calc({percent*100}% {percent>0.5?'-':'+'} {Math.abs(0.5-percent)*18}px);">
             {#if click}
                 <div class="rotater">

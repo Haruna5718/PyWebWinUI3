@@ -20,7 +20,7 @@ def getSystemAccentColor():
 		p, _ = winreg.QueryValueEx(key, "AccentPalette")
 	return [f"#{p[i]:02x}{p[i+1]:02x}{p[i+2]:02x}" for i in range(0,len(p),4)]
 
-def systemMessageListener(callback):
+def systemMessageListener(callback:function):
 	def eventHandler(hwnd, msg, wparam, lparam):
 		if msg == win32con.WM_SETTINGCHANGE:
 			callback(getSystemAccentColor())
@@ -63,24 +63,22 @@ class MainWindow:
 		self.url = url or (Path(__file__).parent/"web"/"index.html").absolute()
 		self._window: webview.Window = None
 		self.debug = debug
+		self.events:dict[str, list|function] = {}
 		self.values = {
 			"system.title": title,
+			"system.icon": None,
 			"system.theme": "system",
 			"system.color": getSystemAccentColor(),
 			"system.pages": None,
 			"system.settings": None,
 			"system.nofication": []
 		}
-		self.events:dict[str,any] = {}
 
 		logging.basicConfig(
 			level=logging.DEBUG,
 			format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
 			datefmt="%H:%M:%S",
-			handlers=[
-				*([logging.FileHandler(log, mode="w", encoding="utf-8")] if log else []),
-				logging.StreamHandler()
-			]
+			handlers=[logging.FileHandler(log, mode="w", encoding="utf-8")] if log else []
 		)
 
 	def onValueChange(self, valueName):
@@ -113,7 +111,6 @@ class MainWindow:
 		self.values[key]=value
 		if sync and self._window:
 			threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
-			logger.debug(f"Value synced: {key}")
 		for event in self.events.get("setValue",{}).get(key,[]):
 			threading.Thread(target=event, args=(key,value,), daemon=True).start()
 

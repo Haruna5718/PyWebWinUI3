@@ -6,8 +6,11 @@
     let main
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
-<span class="container" bind:this={main}>
-    <button class="main" style={data.attr.style} on:click={()=>{open=!open}}>
+<span class="container" bind:this={main} class:disabled={Boolean(data.attr.disabled)}>
+    <button class="main" on:click={()=>{open=!open}} style="
+        width: {data.attr.width ?? 'auto'};
+        height: {data.attr.height ?? 'auto'};
+    ">
         <p>
             {data.text?`${data.text}: `:''}{data.child.find(child=>child.attr.value==$values[data.attr.value])?.text}
         </p>
