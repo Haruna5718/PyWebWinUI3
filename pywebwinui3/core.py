@@ -96,7 +96,10 @@ class MainWindow:
 	
 	def onExit(self):
 		def decorator(func):
-			self._window.events.closed += func
+			if self._window:
+				self._window.events.closed += func
+			else:
+				self.events.setdefault("exit", []).append(func)
 			return func
 		return decorator
 
@@ -107,6 +110,8 @@ class MainWindow:
 		systemMessageListener(self.themeChanged)
 		for event in self.events.get("setup",[]):
 			threading.Thread(target=event, daemon=True).start()
+		for event in self.events.pop("exit", []):
+			self._window.events.closed += event
 	
 	def init(self):
 		return {
