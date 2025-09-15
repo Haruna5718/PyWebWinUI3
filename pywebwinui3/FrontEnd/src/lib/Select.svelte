@@ -58,6 +58,7 @@
         width: 100%;
         height: 100%;
         display: flex;
+        justify-content: space-between;
         font-size: 14px;
         background-color: var(--Select-FillColor);
         border-radius: 4px;
@@ -75,7 +76,6 @@
         }
         span{
             margin-left: 4px;
-            display: flex;
             align-items: center;
         }
 	}

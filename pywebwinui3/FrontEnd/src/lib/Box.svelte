@@ -4,6 +4,7 @@
 <div style="
     gap: {data.attr.gap ?? 'inherit'};
     padding: {data.attr.padding ?? '16px'};
+    background-color: {data.attr.background ?? 'var(--Box-FillColor)'};
     align-items: {data.attr.aligin?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
 ">
     <slot />
@@ -30,7 +31,6 @@
         flex-direction: column;
         align-self: stretch;
 
-        background-color: var(--Box-FillColor);
         border: 1.5px solid var(--Box-BorderColor);
         border-radius: 4px;
     }

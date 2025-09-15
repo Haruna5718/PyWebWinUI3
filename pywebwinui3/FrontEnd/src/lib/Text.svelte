@@ -4,7 +4,7 @@
 
 {#if data.attr.url}
     <a class="text {data.attr.type}" class:disabled={Boolean(data.attr.disabled)} target="_blank" href={data.attr.url} style="
-        margin: {data.attr.margin ?? 0}
+        margin: {data.attr.margin ?? 0};
         {data.attr.color?`color: ${data.attr.color};`:''}
         {data.attr.size?`font-size: ${data.attr.size};`:''}
     ">
@@ -12,7 +12,7 @@
 </a>
 {:else}
     <span class="text {data.attr.type}" class:disabled={Boolean(data.attr.disabled)} style="
-        margin: {data.attr.margin ?? 0}
+        margin: {data.attr.margin ?? 0};
         {data.attr.color?`color: ${data.attr.color};`:''}
         {data.attr.size?`font-size: ${data.attr.size};`:''}
     ">
@@ -27,8 +27,10 @@
         font-size: 16px;
     }
     .description{
-        color: var(--TextFillColorTertiaryBrush);
         font-size: 12px;
+        &:not(a){
+            color: var(--TextFillColorTertiaryBrush);
+        }
     }
     .title{
         font-size: 24px;

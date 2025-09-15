@@ -69,7 +69,7 @@
     input{
         resize: none;
         height: fit-content;
-        padding: 5px 6px 6px 6px;
+        padding: 9px 8px 9px 8px;
         border-radius: 4px;
         background-color: var(--Input-FillColor);
 		border: 1.5px solid var(--Input-BorderColor);
@@ -95,7 +95,7 @@
         }
         &:focus{
             background-color: var(--Input-FocusColor);
-            padding: 5px 6px 5px 6px;
+            padding: 9px 8px 8px 8px;
             border-bottom-width: 2.5px;
             border-bottom-color: var(--AccentFillColorSecondaryBrush);
         }
