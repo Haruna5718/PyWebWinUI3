@@ -3,7 +3,7 @@
 </script>
 <div style="
     gap: {data.attr.gap ?? 'inherit'};
-    padding: {data.attr.padding ?? '0'};
+    padding: {data.attr.padding ?? '16px'};
     align-items: {data.attr.aligin?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
 ">
     <slot />
@@ -32,8 +32,6 @@
 
         background-color: var(--Box-FillColor);
         border: 1.5px solid var(--Box-BorderColor);
-        padding: 16px;
         border-radius: 4px;
-        gap: 4px;
     }
 </style>
