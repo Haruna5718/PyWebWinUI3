@@ -10,11 +10,10 @@
         type={data.attr.type}
         placeholder={data.text}
         on:input={(e)=>{window.setValue(data.attr.value, e.currentTarget.value)}}
+        min={data.attr.min}
+        max={data.attr.max}
         value={$values[data.attr.value]}
-        style="
-            width: {data.attr.width ?? 'auto'};
-            height: {data.attr.height ?? 'auto'};
-        "/>
+    />
     {#if data.attr.type=="number"}
         <span class="buttons">
             <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
@@ -78,6 +77,8 @@
         line-height: 1.3em;
         box-shadow: 0 1px 0 0 #00000030;
         transition: all 0.1s ease-out, padding 0s, border-bottom-width 0s;
+        width: 100%;
+        height: 100%;
 		&::-webkit-inner-spin-button,&::-webkit-outer-spin-button{
 			appearance: none;
 			margin: 0;

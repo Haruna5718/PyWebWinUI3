@@ -17,7 +17,7 @@
 	export const format = (text) => {
 		const v = get(values);
 		let t = text.match(/^(?<!\\)\{([^}]+)\}$/)
-		if(t) return v[t[1]]
+		if(t) return v[t[1]] ?? text
         return text.replace(/(?<!\\){(.*?)}/g, (m, k) => v[k] ?? m).replace(/\\({.*?})/g, "$1");
     };
 </script>

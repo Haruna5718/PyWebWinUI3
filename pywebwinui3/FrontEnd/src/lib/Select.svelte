@@ -6,11 +6,11 @@
     let main
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
-<span class="container" bind:this={main} class:disabled={Boolean(data.attr.disabled)}>
-    <button class="main" on:click={()=>{open=!open}} style="
-        width: {data.attr.width ?? 'auto'};
-        height: {data.attr.height ?? 'auto'};
-    ">
+<span class="container" bind:this={main} class:disabled={Boolean(data.attr.disabled)} style="
+    width: {data.attr.width ?? 'auto'};
+    height: {data.attr.height ?? 'auto'};
+">
+    <button class="main" on:click={()=>{open=!open}}>
         <p>
             {data.text?`${data.text}: `:''}{data.child.find(child=>child.attr.value==$values[data.attr.value])?.text}
         </p>
@@ -55,6 +55,8 @@
     @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
 
     .main{
+        width: 100%;
+        height: 100%;
         display: flex;
         font-size: 14px;
         background-color: var(--Select-FillColor);
