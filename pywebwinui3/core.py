@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import webview
 import threading
 import mimetypes
@@ -91,6 +89,12 @@ class MainWindow:
 	def onSetup(self):
 		def decorator(func):
 			self.events.setdefault("setup", []).append(func)
+			return func
+		return decorator
+	
+	def onExit(self):
+		def decorator(func):
+			self._window.events.closed += func
 			return func
 		return decorator
 

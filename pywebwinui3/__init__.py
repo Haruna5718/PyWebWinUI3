@@ -1,3 +1,3 @@
 from .core import *
 
-__version__ = '1.0.0-beta.9'
+__version__ = '1.0.0-beta.10'
