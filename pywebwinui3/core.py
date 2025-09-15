@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import webview
 import threading
 import mimetypes
