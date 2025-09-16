@@ -5,7 +5,7 @@
 </script>
 {#if !data.attr.disabled}
     {#each data.child.find((d)=>$values[data.attr.value]?"True":"False"==d.tag)?.child ?? [] as val}
-        <Component formatData={val}/>
+        <Component rawData={val}/>
     {/each}
 {/if}
 <style lang="scss">

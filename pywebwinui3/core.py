@@ -58,6 +58,7 @@ class Notice:
 	Warning = 2
 	Error = 3
 	Critical = 3
+	Offline = 4
 
 class MainWindow:
 	def __init__(self, title, debug=False, url:str|Path=None, log:str|Path=None):
@@ -110,9 +111,11 @@ class MainWindow:
 		systemMessageListener(self.themeChanged)
 		for event in self.events.get("setup",[]):
 			threading.Thread(target=event, daemon=True).start()
-		for event in self.events.pop("exit", []):
-			self._window.events.closed += event
-	
+
+	def exit(self):
+		for event in self.events.get("exit", []):
+			event()
+
 	def init(self):
 		return {
 			**self.values,
@@ -159,4 +162,5 @@ class MainWindow:
 		mimetypes.add_type("application/javascript", ".js")
 		self.destroy = self._window.destroy
 		self.minimize = self._window.minimize
+		self._window.events.closed += self.exit
 		webview.start(self.setup,debug=self.debug)

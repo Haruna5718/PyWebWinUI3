@@ -419,6 +419,9 @@
 				&.l3{
 					background-color: var(--SystemFillColorCriticalBrush);
 				}
+				&.l4{
+					background-color: var(--TextFillColorTertiaryBrush);
+				}
 			}
 			@container (max-width: 50px) {
 				.badge{

@@ -1,31 +1,43 @@
 <script lang="ts">
     import { values, format } from '../App.svelte';
+    import Component from './Component.svelte';
     export let data: { [key: string]: any };
+
+    const formatOption = (targetData) => {
+        let isChange = targetData.tag == "Option";
+        return {
+            tag: targetData.tag,
+            attr: { ...targetData.attr, ...(isChange ? { optionValue: data.attr.value } : {}) },
+            text: targetData.text,
+            child: targetData.child.map(formatOption)
+        };
+    };
 
     let open=false
     let main
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
-<span class="container" bind:this={main} class:disabled={Boolean(data.attr.disabled)} style="
+<span class="container" class:disabled={Boolean(data.attr.disabled)} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">
-    <button class="main" on:click={()=>{open=!open}}>
+    <button class="main" on:click={()=>{open=!open}} bind:this={main}>
         <p>
-            {data.text?`${data.text}: `:''}{data.child.find(child=>child.attr.value==$values[data.attr.value])?.text}
+            {data.text?`${data.text}: `:''}{$values[`${data.attr.value}._Option`]}
         </p>
         <span></span>
     </button>
-    {#if open}
-        <div class="menu">
-            {#each data.child as child}
-                {@const childAttr = Object.fromEntries(Object.entries(child.attr).map(([k, v]) => [k, format(v)]))}
-                <button class="item" style={childAttr.style} class:select={$values[data.attr.value]==child.attr.value} on:click={()=>{open=false;window.setValue(data.attr.value, childAttr.value)}}>
-                    {format(child.text)}
-                </button>
-            {/each}
-        </div>
-    {/if}
+    <div class="menu" style="display: {open?'flex':'none'};">
+        {#each data.child as child}
+            {@const childData = formatOption({
+                tag: child.tag,
+                attr: Object.fromEntries(Object.entries(child.attr).map(([k, v]) => [k, format(v)])),
+                text: format(child.text),
+                child: child.child
+            })}
+                <Component formatData={childData} />
+        {/each}
+    </div>
 </span>
 <style lang="scss">
     $light: (
@@ -34,8 +46,6 @@
         Select-ActiveColor: #fcfcfc,
         Select-BorderColor: #eeeeee,
         Select-MenuFillColor: #f9f9f9,
-        Select-MenuHoverColor: #f0f0f0,
-        Select-MenuActiveColor: #f3f3f3,
         Select-MenuBorderColor: #ededed,
     );
     $dark: (
@@ -44,8 +54,6 @@
         Select-ActiveColor: #393939,
         Select-BorderColor: #454545,
         Select-MenuFillColor: #2c2c2c,
-        Select-MenuHoverColor: #383838,
-        Select-MenuActiveColor: #343434,
         Select-MenuBorderColor: #1f1f1f,
     );
     @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
@@ -101,33 +109,6 @@
             100%{
                 transform: translateY(10px);
             }
-        }
-        .item{
-            text-align: left;
-            align-self: stretch;
-            border-radius: 4px;
-            background-color: transparent;
-            padding: 6px 12px;
-            &.select,&.select:active,&:hover:not(:active){
-				background-color: var(--Select-MenuHoverColor);
-			}
-            &.select:hover:not(:active),&:active{
-                background-color: var(--Select-MenuActiveColor);
-            }
-            &.select:active::before{
-                height: 6px;
-            }
-            &.select::before{
-				position: absolute;
-				content: "";
-				border-radius: 1.5px;
-                left: 0;
-                top: 50%;
-				width: 3px;
-				height: 16px;
-                transform: translateY(-50%);
-                background-color: var(--AccentFillColorSecondaryBrush);
-			}
         }
     }
 </style>
