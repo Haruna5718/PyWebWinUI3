@@ -3,6 +3,7 @@
 </script>
 <div style="
     gap: {data.attr.gap ?? 'inherit'};
+    border-radius: {data.attr.round ?? '4px'};
     padding: {data.attr.padding ?? '16px'};
     background-color: {data.attr.background ?? 'var(--Box-FillColor)'};
     align-items: {data.attr.aligin?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
@@ -32,6 +33,5 @@
         align-self: stretch;
 
         border: 1.5px solid var(--Box-BorderColor);
-        border-radius: 4px;
     }
 </style>

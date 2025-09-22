@@ -60,5 +60,5 @@ app.start("dashboard")
 
 ## License
 Apache-2.0
----
+
 > This README was generated using AI (GitHub Copilot).

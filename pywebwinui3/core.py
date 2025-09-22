@@ -114,7 +114,7 @@ class MainWindow:
 
 	def exit(self):
 		for event in self.events.get("exit", []):
-			event()
+			threading.Thread(target=event).start()
 
 	def init(self):
 		return {
