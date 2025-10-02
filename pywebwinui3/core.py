@@ -124,12 +124,13 @@ class MainWindow:
 
 	def setValue(self, key, value, sync=True):
 		self.values[key]=value
-		if sync and self._window:
-			threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
-		for pattern, callbacks in list(self.events.get("setValue",{}).items()):
-			if fnmatch.fnmatch(key, pattern):
-				for callback in callbacks:
-					threading.Thread(target=callback, args=(key,value,), daemon=True).start()
+		if self._window:
+			if sync:
+				threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
+			for pattern, callbacks in list(self.events.get("setValue",{}).items()):
+				if fnmatch.fnmatch(key, pattern):
+					for callback in callbacks:
+						threading.Thread(target=callback, args=(key,value,), daemon=True).start()
 
 	def themeChanged(self, color:str):
 		if color != self.values['system.color']:

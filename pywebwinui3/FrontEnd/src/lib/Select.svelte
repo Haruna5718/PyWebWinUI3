@@ -23,7 +23,7 @@
 ">
     <button class="main" on:click={()=>{open=!open}} bind:this={main}>
         <p>
-            {data.text?`${data.text}: `:''}{$values[`${data.attr.value}._Option`]}
+            {data.text?`${data.text}: `:''}{$values[`${data.attr.value}._Temp`]}
         </p>
         <span></span>
     </button>

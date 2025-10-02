@@ -8,7 +8,7 @@ except ImportError:
     from pywebwinui3 import MainWindow, loadPage, Notice
 
 if __name__ == "__main__":
-    app = MainWindow("PyWebWinUI3", "debug" in sys.argv, "http://localhost:3000")
+    app = MainWindow("PyWebWinUI3", "debug" in sys.argv, "http://localhost:3000" if "server" in sys.argv else None)
     # app = MainWindow("PyWebWinUI3", debug="debug" in sys.argv)
 
     app.addSettings(loadPage("Settings.xaml"))
