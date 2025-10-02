@@ -28,10 +28,10 @@
 
 	window.setValue = (target:string, value:any, sync=true) => {
 		if(!target) return;
-		if(target.endsWith("_Temp")) return;
 		values.update(dict=>{
 			return { ...dict, [target]: value };
 		});
+		if(target.endsWith("_Temp")) return;
 		if(sync) window.pywebview.api.setValue(target, value, false)
 	}
 	
