@@ -1,13 +1,14 @@
 <script lang="ts">
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
+    let ispasswordShow = false
 </script>
 <span class:disabled={Boolean(data.attr.disabled)} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">
     <input
-        type={data.attr.type}
+        type={data.attr.type=="password"?(ispasswordShow?"text":"password"):data.attr.type}
         placeholder={data.text}
         on:input={(e)=>{window.setValue(data.attr.value, e.currentTarget.value)}}
         min={data.attr.min}
@@ -18,6 +19,11 @@
         <span class="buttons">
             <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
             <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])-1)}></button>
+        </span>
+    {/if}
+    {#if data.attr.type=="password"}
+        <span class="buttons">
+            <button on:click={()=>ispasswordShow=!ispasswordShow}>{ispasswordShow?"":""}</button>
         </span>
     {/if}
 </span>
