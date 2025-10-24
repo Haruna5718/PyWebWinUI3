@@ -114,12 +114,12 @@ class MainWindow:
 			"system.isOnTop": self._window.on_top,
 		}
 
-	def setValue(self, key, value, sync=True, recive=False):
+	def setValue(self, key, value, sync=True, broadcast=True):
 		self.values[key]=value
 		if self._window:
 			if sync:
 				threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
-			if recive:
+			if broadcast:
 				for pattern, callbacks in list(self.events.get("setValue",{}).items()):
 					if fnmatch.fnmatch(key, pattern):
 						for callback in callbacks:

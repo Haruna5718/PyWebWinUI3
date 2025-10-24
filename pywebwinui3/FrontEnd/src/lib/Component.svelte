@@ -24,6 +24,7 @@
     import If from './If.svelte';
     import Repeat from './Repeat.svelte';
     import Option from './Option.svelte';
+    import Match from './Match.svelte';
 
     const Components = {
         Text,
@@ -46,7 +47,8 @@
         Webview,
         If,
         Repeat,
-        Option
+        Option,
+        Match
     };
 
     export let rawData: { [key: string]: any } = undefined; 
@@ -60,7 +62,7 @@
         text: format(rawData.text),
         child: rawData.child
     }}
-    {#if ["Select","Slider","Switch","Text","Line","Input","Progressbar","Button","Check","Radio","Webview","Image","If","Repeat","Option"].includes(data.tag)}
+    {#if ["Select","Slider","Switch","Text","Line","Input","Progressbar","Button","Check","Radio","Webview","Image","If","Repeat","Option","Match"].includes(data.tag)}
         <svelte:component {data} this={Components[data.tag]} />
     {:else}
         <svelte:component {data} this={Components[data.tag]}>
