@@ -32,7 +32,7 @@
 			return { ...dict, [target]: value };
 		});
 		if(target.endsWith("_Temp")) return;
-		if(sync) window.pywebview.api.setValue(target, value, false)
+		if(sync) window.pywebview.api.setValue(target, value, false, true)
 	}
 	
 	let hash = location.hash

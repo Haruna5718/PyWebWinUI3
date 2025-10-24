@@ -114,15 +114,16 @@ class MainWindow:
 			"system.isOnTop": self._window.on_top,
 		}
 
-	def setValue(self, key, value, sync=True):
+	def setValue(self, key, value, sync=True, recive=False):
 		self.values[key]=value
 		if self._window:
 			if sync:
 				threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
-			for pattern, callbacks in list(self.events.get("setValue",{}).items()):
-				if fnmatch.fnmatch(key, pattern):
-					for callback in callbacks:
-						threading.Thread(target=callback, args=(key,value,), daemon=True).start()
+			if recive:
+				for pattern, callbacks in list(self.events.get("setValue",{}).items()):
+					if fnmatch.fnmatch(key, pattern):
+						for callback in callbacks:
+							threading.Thread(target=callback, args=(key,value,), daemon=True).start()
 
 	def themeChanged(self, color:str):
 		logger.debug("Accent color change detected")
