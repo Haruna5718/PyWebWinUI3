@@ -3,7 +3,7 @@
 </script>
 <span style="
     gap: {data.attr.gap ?? 'inherit'};
-    align-items: {data.attr.aligin?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
+    align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
 ">
     <slot />
 </span>

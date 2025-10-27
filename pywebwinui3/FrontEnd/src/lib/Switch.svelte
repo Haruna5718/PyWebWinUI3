@@ -4,8 +4,8 @@
 </script>
 <span class="main" class:disabled={Boolean(data.attr.disabled)}>
     <span style="
-        order: {data.attr.aligin=="right"?2:0};
-        align-items: {data.attr.aligin=="right"?'flex-start':'flex-end'};
+        order: {data.attr.align=="right"?2:0};
+        align-items: {data.attr.align=="right"?'flex-start':'flex-end'};
     ">
         <label for="switch.{data.attr.value}" style="
             opacity: {$values[data.attr.value]?'1':'0'};

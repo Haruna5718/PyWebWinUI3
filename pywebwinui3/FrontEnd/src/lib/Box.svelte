@@ -6,7 +6,7 @@
     border-radius: {data.attr.round ?? '4px'};
     padding: {data.attr.padding ?? '16px'};
     background-color: {data.attr.background ?? 'var(--Box-FillColor)'};
-    align-items: {data.attr.aligin?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
+    align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
 ">
     <slot />
 </div>

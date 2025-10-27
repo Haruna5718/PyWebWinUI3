@@ -11,7 +11,7 @@
 <span class:disabled={Boolean(data.attr.disabled)}>
     {#if data.text}
         <label for="check.{data.attr.value}" style="
-            order: {data.attr.aligin=="left"?0:2};
+            order: {data.attr.align=="left"?0:2};
         ">
             {data.text}
         </label>

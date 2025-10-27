@@ -46,9 +46,12 @@
 
     .container{
         display: flex;
+        &:not(.vertical){
+            height: 24px;
+        }
         &.vertical{
             height: 160px;
-            width: 20px;
+            width: 24px;
             .main{
                 top: 0.5px;
                 right: calc(300% + 9.5px);
