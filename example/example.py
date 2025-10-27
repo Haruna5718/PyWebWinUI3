@@ -8,8 +8,7 @@ except ImportError:
     from pywebwinui3 import MainWindow, loadPage, Notice
 
 if __name__ == "__main__":
-    app = MainWindow("PyWebWinUI3", "debug" in sys.argv, "http://localhost:3000" if "server" in sys.argv else None)
-    # app = MainWindow("PyWebWinUI3", debug="debug" in sys.argv)
+    app = MainWindow("PyWebWinUI3", "http://localhost:3000" if "server" in sys.argv else None)
 
     app.addSettings(loadPage("Settings.xaml"))
     app.addPage(loadPage("Dashboard.xaml"))
@@ -58,7 +57,7 @@ if __name__ == "__main__":
 
     app.setValue("test.repeat", 3)
 
-    app.setValue("test.state", Notice.Attention)
+    app.setValue("test.state", "")
     app.setValue("test.badge", 1)
 
     app.setValue("test.noticeType", Notice.Information)
@@ -76,4 +75,4 @@ if __name__ == "__main__":
     def notiveCreate(*_):
         app.notice(app.values["test.noticeType"],app.values["test.noticeTitle"],app.values["test.noticeDescription"])
 
-    app.start("dashboard")
+    app.start("dashboard", "debug" in sys.argv)

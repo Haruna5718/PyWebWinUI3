@@ -5,6 +5,7 @@
             <Space />
             <Select value="test.state">
                 Type
+                <Option value="">Disable</Option>
                 <Option value="0">Attention</Option>
                 <Option value="1">Success</Option>
                 <Option value="2">Warning</Option>
@@ -148,14 +149,14 @@
         <Horizontal>
             <Text>Switch</Text>
             <Space />
-            <Select value="test.switchAligin">
-                Aligin
+            <Select value="test.switchalign">
+                align
                 <Option value="right">Right</Option>
                 <Option value="left">Left</Option>
             </Select>
         </Horizontal>
         <Horizontal>
-            <Switch value="test.switch" aligin="{test.switchAligin}" disabled="{test.disabled}"/>
+            <Switch value="test.switch" align="{test.switchalign}" disabled="{test.disabled}"/>
             <Space />
             <Text type="description">Value: {test.switch}</Text>
         </Horizontal>
@@ -169,14 +170,14 @@
                 <Option value="two">Two</Option>
                 <Option value="three">Three</Option>
             </Select>
-            <Select value="test.checkAligin">
-                Aligin
+            <Select value="test.checkalign">
+                align
                 <Option value="right">Right</Option>
                 <Option value="left">Left</Option>
             </Select>
         </Horizontal>
         <Horizontal>
-            <Check value="test.checkd" type="{test.checkType}" aligin="{test.checkAligin}" disabled="{test.disabled}">Option</Check>
+            <Check value="test.checkd" type="{test.checkType}" align="{test.checkalign}" disabled="{test.disabled}">Option</Check>
             <Space />
             <Text type="description">Value: {test.checkd}</Text>
         </Horizontal>
@@ -185,16 +186,16 @@
         <Horizontal>
             <Text>Radio</Text>
             <Space />
-            <Select value="test.radioAligin">
-                Aligin
+            <Select value="test.radioalign">
+                align
                 <Option value="right">Right</Option>
                 <Option value="left">Left</Option>
             </Select>
         </Horizontal>
         <Horizontal>
-            <Radio value="option1" group="test.radio" aligin="{test.radioAligin}" disabled="{test.disabled}">Option1</Radio>
-            <Radio value="option2" group="test.radio" aligin="{test.radioAligin}" disabled="{test.disabled}">Option2</Radio>
-            <Radio value="option3" group="test.radio" aligin="{test.radioAligin}" disabled="{test.disabled}">Option3</Radio>
+            <Radio value="option1" group="test.radio" align="{test.radioalign}" disabled="{test.disabled}">Option1</Radio>
+            <Radio value="option2" group="test.radio" align="{test.radioalign}" disabled="{test.disabled}">Option2</Radio>
+            <Radio value="option3" group="test.radio" align="{test.radioalign}" disabled="{test.disabled}">Option3</Radio>
             <Space />
             <Text type="description">Value: {test.radio}</Text>
         </Horizontal>
@@ -203,7 +204,7 @@
         <Horizontal>
             <Text>If</Text>
             <Space />
-            <Switch value="test.if" aligin="left"/>
+            <Switch value="test.if" align="left"/>
         </Horizontal>
         <Horizontal>
             <If value="test.if" disabled="{test.disabled}">

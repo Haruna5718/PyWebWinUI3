@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import webview
 import threading
 import mimetypes
@@ -8,6 +6,7 @@ import xml.etree.ElementTree
 from pathlib import Path
 import logging
 import fnmatch
+import win32con
 
 logger = logging.getLogger("pywebwinui3")
 
@@ -17,17 +16,15 @@ def getSystemAccentColor():
 		p, _ = winreg.QueryValueEx(key, "AccentPalette")
 	return [f"#{p[i]:02x}{p[i+1]:02x}{p[i+2]:02x}" for i in range(0,len(p),4)]
 
-def systemMessageListener(callback:function):
-	import win32con
+def systemMessageListener(callback):
 	import win32gui
 	import win32api
-	def eventHandler(hwnd, msg, wparam, lparam):
-		if msg == win32con.WM_SETTINGCHANGE:
-			callback(getSystemAccentColor())
-		return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 	wc = win32gui.WNDCLASS()
 	hinst = win32api.GetModuleHandle(None)
 	wc.lpszClassName = "SystemMessageListener"
+	def eventHandler(hwnd, msg, wparam, lparam):
+		callback(hwnd, msg, wparam, lparam)
+		return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 	wc.lpfnWndProc = eventHandler
 	classAtom = win32gui.RegisterClass(wc)
 	win32gui.CreateWindow(classAtom, wc.lpszClassName, 0, 0, 0, 0, 0, 0, 0, hinst, None)
@@ -60,10 +57,9 @@ class Notice:
 	Offline = 4
 
 class MainWindow:
-	def __init__(self, title, debug=False, url:str|Path=None, log:str|Path=None):
+	def __init__(self, title, url:str|Path=None):
 		self.url = str(url or (Path(__file__).parent/"web"/"index.html").absolute())
-		self._window: webview.Window = None
-		self.debug = debug
+		self.api = WebviewAPI(self)
 		self.events:dict[str, list|function] = {}
 		self.values = {
 			"system.title": title,
@@ -89,8 +85,8 @@ class MainWindow:
 	
 	def onExit(self):
 		def decorator(func):
-			if self._window:
-				self._window.events.closed += func
+			if self.api._window:
+				self.api._window.events.closed += func
 			else:
 				self.events.setdefault("exit", []).append(func)
 			return func
@@ -100,38 +96,38 @@ class MainWindow:
 		self.setValue('system.nofication', [*self.values["system.nofication"],[level,title,description]])
 
 	def _setup(self):
-		threading.Thread(target=systemMessageListener, args=(self.themeChanged,), daemon=True).start()
+		threading.Thread(target=systemMessageListener, args=(self._systemMessageHandler,), daemon=True).start()
+		for _ in range(len(self.events.get("exit", []))):
+			self.api._window.events.closed += self.events.get("exit").pop()
 		for event in self.events.get("setup",[]):
 			threading.Thread(target=event, daemon=True).start()
-
-	def _exit(self):
-		for event in self.events.get("exit", []):
-			threading.Thread(target=event).start()
 
 	def init(self):
 		return {
 			**self.values,
-			"system.isOnTop": self._window.on_top,
+			"system.isOnTop": self.api._window.on_top,
 		}
+	
+	def getValue(self, key, default=None):
+		return self.values.get(key, default)
 
 	def setValue(self, key, value, sync=True, broadcast=True):
 		self.values[key]=value
-		if self._window:
+		if self.api._window:
 			if sync:
-				threading.Thread(target=lambda: self._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)"), daemon=True).start()
+				self.api._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)")
 			if broadcast:
 				for pattern, callbacks in list(self.events.get("setValue",{}).items()):
 					if fnmatch.fnmatch(key, pattern):
 						for callback in callbacks:
-							threading.Thread(target=callback, args=(key,value,), daemon=True).start()
+							threading.Thread(target=callback, args=(key, value,), daemon=True).start()
+		return value
 
-	def themeChanged(self, color:str):
-		logger.debug("Accent color change detected")
-		self.setValue('system.color', color)
-
-	def setTop(self, State:bool):
-		threading.Thread(target=lambda: setattr(self._window, "on_top", State), daemon=True).start()
-		return self.setValue('system.isOnTop', self._window.on_top)
+	def _systemMessageHandler(self, hwnd, msg, wparam, lparam):
+		if msg == win32con.WM_SETTINGCHANGE:
+			if self.getValue('system.color')!=(color:=getSystemAccentColor()):
+				self.setValue('system.color', color)
+				logger.debug("Accent color change detected")
 	
 	def addSettings(self, pageData:dict[str, str|dict|list]):
 		if not pageData:
@@ -148,11 +144,23 @@ class MainWindow:
 			pageData.get("attr").get("path"):pageData
 		})
 
-	def start(self, page=None):
-		self._window = webview.create_window(self.values["system.title"], f"{self.url}#{page}", js_api=self, background_color="#202020", frameless=True, easy_drag=False, draggable=True, text_select=True, width=900, height=600)
-		logger.debug("window created")
+	def start(self, page=None, debug=False):
+		self.api.initWindow(webview.create_window(self.values["system.title"], f"{self.url}#{page}", js_api=self.api, background_color="#202020", frameless=True, easy_drag=False, draggable=True, text_select=True, width=900, height=600))
+		logger.debug("Window created")
 		mimetypes.add_type("application/javascript", ".js")
+		webview.start(self._setup,debug=debug)
+
+class WebviewAPI:
+	def __init__(self, mainClass:MainWindow):
+		self._window: webview.Window = None
+		self.init = mainClass.init
+		self.setValue = mainClass.setValue
+
+	def initWindow(self, window):
+		self._window = window
 		self.destroy = self._window.destroy
 		self.minimize = self._window.minimize
-		self._window.events.closed += self._exit
-		webview.start(self._setup,debug=self.debug)
+
+	def setTop(self, State:bool):
+		threading.Thread(target=lambda: setattr(self._window, "on_top", State), daemon=True).start()
+		return self.setValue('system.isOnTop', self._window.on_top)
