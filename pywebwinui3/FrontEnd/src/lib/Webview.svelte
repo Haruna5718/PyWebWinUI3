@@ -1,7 +1,7 @@
 <script lang="ts">
     export let data: { [key: string]: any };
 </script>
-<iframe src={data.attr.source} title="Webview" class:disabled={Boolean(data.attr.disabled)} style="
+<iframe src={data.attr.source} title="Webview" class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 "/>

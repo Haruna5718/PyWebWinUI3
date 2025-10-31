@@ -10,7 +10,7 @@
         }
     }
 </script>
-<button class="main" class:select={data.attr.type=="toggle"&&$values[data.attr.value]} disabled={Boolean(data.attr.disabled)} on:click={click} style="
+<button class="main" class:select={data.attr.type=="toggle"&&$values[data.attr.value]} disabled={String(data.attr.disabled??"")=="true"} on:click={click} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">

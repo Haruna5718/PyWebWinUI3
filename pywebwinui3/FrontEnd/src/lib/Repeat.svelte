@@ -11,16 +11,37 @@
             tag: targetData.tag,
             attr: Object.fromEntries(Object.entries(targetData.attr).map(([k, v]) => [k, formatIndex(v,index)])),
             text: formatIndex(targetData.text,index),
-            child: targetData.child.map((child,index) => formatIndexAll(child,index))
+            child: targetData.child.map((child) => formatIndexAll(child,index))
+        };
+    };
+
+    const formatVlaue = (text,value) => {
+        return text.replace(/(?<!\\){(\d+)}/g, (m,k) => value[Number(k)]).replace(/\\({\d+})/g, "$1");
+    };
+
+    const formatVlaueAll = (targetData,value) => {
+        return {
+            tag: targetData.tag,
+            attr: Object.fromEntries(Object.entries(targetData.attr).map(([k, v]) => [k, formatVlaue(v,value)])),
+            text: formatVlaue(targetData.text,value),
+            child: targetData.child.map((child) => formatVlaueAll(child,value))
         };
     };
 </script>
-{#if !data.attr.disabled}
-    {#each new Array(Number($values[data.attr.value])||0) as _,index}
-        {#each data.child as val}
-            <Component rawData={formatIndexAll(val,index)}/>
+{#if String(data.attr.disabled??"")!="true"}
+    {#if data.attr.data && ($values[data.attr.data]??[]).length}
+        {#each $values[data.attr.data]??[] as indexValue}
+            {#each data.child as val}
+                <Component rawData={formatVlaueAll(val,indexValue)}/>
+            {/each}
         {/each}
-    {/each}
+    {:else}
+        {#each new Array(Number($values[data.attr.value])||0) as _,index}
+            {#each data.child as val}
+                <Component rawData={formatIndexAll(val,index)}/>
+            {/each}
+        {/each}
+    {/if}
 {/if}
 <style lang="scss">
 </style>

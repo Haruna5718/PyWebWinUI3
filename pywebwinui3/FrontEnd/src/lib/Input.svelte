@@ -3,14 +3,14 @@
     export let data: { [key: string]: any };
     let ispasswordShow = false
 </script>
-<span class:disabled={Boolean(data.attr.disabled)} style="
+<span class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">
     <input
         type={data.attr.type=="password"?(ispasswordShow?"text":"password"):data.attr.type}
         placeholder={data.text}
-        on:input={(e)=>{window.setValue(data.attr.value, e.currentTarget.value)}}
+        on:input={(e)=>{window.setValue(data.attr.value, data.attr.type=="number"?Number(e.currentTarget.value):e.currentTarget.value)}}
         min={data.attr.min}
         max={data.attr.max}
         value={$values[data.attr.value]}

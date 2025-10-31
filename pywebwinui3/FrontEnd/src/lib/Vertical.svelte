@@ -4,6 +4,7 @@
 </script>
 <span style="
     gap: {data.attr.gap ?? 'inherit'};
+    width: {data.attr.width ?? 'auto'};
     align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
 ">
     <slot />

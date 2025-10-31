@@ -17,7 +17,7 @@
     let main
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
-<span class="container" class:disabled={Boolean(data.attr.disabled)} style="
+<span class="container" class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">
@@ -87,7 +87,7 @@
             align-items: center;
         }
         p{
-            min-width: fit-content;
+            min-width: max-content;
         }
 	}
     .menu{

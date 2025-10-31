@@ -1,7 +1,7 @@
 <script lang="ts">
     export let data: { [key: string]: any };
 </script>
-<img src={data.attr.source} alt={data.attr.source} class:disabled={Boolean(data.attr.disabled)} style="
+<img src={data.attr.source} alt={data.attr.source} class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">

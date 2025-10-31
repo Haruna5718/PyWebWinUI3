@@ -3,7 +3,7 @@
 </script>
 
 {#if data.attr.url}
-    <a class="text {data.attr.type}" class:disabled={Boolean(data.attr.disabled)} target="_blank" href={data.attr.url} style="
+    <a class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} target="_blank" href={data.attr.url} style="
         margin: {data.attr.margin ?? 0};
         {data.attr.color?`color: ${data.attr.color};`:''}
         {data.attr.size?`font-size: ${data.attr.size};`:''}
@@ -11,7 +11,7 @@
         {data.text}
 </a>
 {:else}
-    <span class="text {data.attr.type}" class:disabled={Boolean(data.attr.disabled)} style="
+    <span class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
         margin: {data.attr.margin ?? 0};
         {data.attr.color?`color: ${data.attr.color};`:''}
         {data.attr.size?`font-size: ${data.attr.size};`:''}
