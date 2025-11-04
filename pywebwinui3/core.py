@@ -7,6 +7,7 @@ from pathlib import Path
 import logging
 import fnmatch
 import win32con
+import base64
 
 logger = logging.getLogger("pywebwinui3")
 
@@ -31,21 +32,21 @@ def systemMessageListener(callback):
 	logger.debug("System message listener started")
 	win32gui.PumpMessages()
 
-def XamlToJson(Element: xml.etree.ElementTree.Element):
+def XamlToJson(element: xml.etree.ElementTree.Element):
 	return {
-		"tag":Element.tag,
-		"attr":Element.attrib,
-		"text":(Element.text or "").strip(),
-		"child":list(map(XamlToJson,Element))
+		"tag":element.tag,
+		"attr":element.attrib,
+		"text":(element.text or "").strip(),
+		"child":[XamlToJson(e) for e in element]
 	}
 
-def loadPage(FilePath: str|Path):
+def loadPage(filePath: str|Path):
 	try:
-		return XamlToJson(xml.etree.ElementTree.parse(FilePath).getroot())
+		return XamlToJson(xml.etree.ElementTree.parse(filePath).getroot())
 	except FileNotFoundError:
-		return logger.error(f"Failed to load page: {FilePath} not found")
+		return logger.error(f"Failed to load page: {filePath} not found")
 	except xml.etree.ElementTree.ParseError as e:
-		return logger.error(f"Failed to load page {FilePath}: {e}")
+		return logger.error(f"Failed to load page {filePath}: {e}")
 	
 class Notice:
 	Accent = 0
@@ -137,6 +138,8 @@ class MainWindow:
 			self.api._window.events.closed += self.events.get("exit").pop()
 		for event in self.events.get("setup",[]):
 			threading.Thread(target=event, daemon=True).start()
+		for _ in range(len(self.events.get("setupImage", []))):
+			threading.Thread(target=self.setupImage, args=(self.events.get("setupImage").pop(),), daemon=True).start()
 
 	def init(self):
 		return {
@@ -166,13 +169,35 @@ class MainWindow:
 				self.setValue('system.color', color)
 				logger.debug("Accent color change detected")
 	
-	def addSettings(self, pageData:dict[str, str|dict|list]):
+	def setupImage(self, path:str):
+		self.api._window.evaluate_js(f"window.imageCache[{json.dumps(path)}]={json.dumps(self.api.getImage(path))}")
+
+	def _imagePreload(self, node: dict, refPath:Path):
+		if "source" in node["attr"]:
+			sourcePath = Path(node["attr"]["source"])
+			node["attr"]["source"] = str((sourcePath if sourcePath.is_absolute() else refPath/sourcePath).resolve())
+			if self.api._window:
+				self.setupImage(node["attr"]["source"])
+			else:
+				self.events.setdefault("setupImage", []).append(node["attr"]["source"])
+		node["child"] = [self._imagePreload(c, refPath) for c in node["child"]]
+		return node
+
+	def addSettings(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None, imagePreload=True):
+		if pageFile and not pageData:
+			pageData = loadPage(pageFile)
+		if imagePreload:
+			pageData = self._imagePreload(pageData,Path(pageFile).parent)
 		if not pageData:
 			return logger.error("Invalid page data provided")
 		logger.debug(f"Page added: {pageData.get('attr').get('path')}")
 		return self.setValue('system.settings', pageData)
 
-	def addPage(self, pageData:dict[str, str|dict|list]):
+	def addPage(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None, imagePreload=True):
+		if pageFile and not pageData:
+			pageData = loadPage(pageFile)
+		if imagePreload:
+			pageData = self._imagePreload(pageData,Path(pageFile).parent)
 		if not pageData:
 			return logger.error("Invalid page data provided")
 		logger.debug(f"Page added: {pageData.get('attr').get('path')}")
@@ -201,3 +226,12 @@ class WebviewAPI:
 	def setTop(self, State:bool):
 		threading.Thread(target=lambda: setattr(self._window, "on_top", State), daemon=True).start()
 		return self.setValue('system.isOnTop', self._window.on_top)
+	
+	def getImage(self, path: str|Path) -> str:
+		path = Path(path)
+		if not path.exists() or not path.is_file():
+			return ""
+		with open(path, "rb") as f:
+			image = f"data:image/{Path(path).suffix.lstrip('.')};base64,{base64.b64encode(f.read()).decode('utf-8')}"
+			logger.debug(f"image loaded: {path}")
+			return image

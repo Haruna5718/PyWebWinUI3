@@ -10,10 +10,7 @@ declare global {
       };
     };
     setValue: (target: string, value: any, sync?: boolean) => void;
-    appName:string;
-    appIcon:string;
-    values: {
-      [key: string]: any;
-    }
+    getImage: (path: string) => string;
+    imageCache: { [key: string]: string };
   }
 }
