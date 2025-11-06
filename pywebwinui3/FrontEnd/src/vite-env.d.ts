@@ -10,7 +10,5 @@ declare global {
       };
     };
     setValue: (target: string, value: any, sync?: boolean) => void;
-    getImage: (path: string) => string;
-    imageCache: { [key: string]: string };
   }
 }

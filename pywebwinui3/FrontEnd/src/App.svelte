@@ -34,17 +34,6 @@
 		if(target.endsWith("_Temp")) return;
 		if(sync) window.pywebview.api.setValue(target, value, false, true)
 	}
-
-	window.imageCache = {}
-
-	window.getImage = (path:string) => {
-		if(window.imageCache[path])
-			return window.imageCache[path]
-		window.pywebview.api.getImage(path).then((d:string)=>{
-			window.imageCache[path] = d
-			return d
-		})
-	}
 	
 	let hash = location.hash
 	let RecentPages = 0;

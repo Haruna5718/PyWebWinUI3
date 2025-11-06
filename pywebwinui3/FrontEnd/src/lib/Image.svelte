@@ -1,7 +1,7 @@
 <script lang="ts">
     export let data: { [key: string]: any };
 </script>
-<img src={window.getImage(data.attr.source)} alt="" class:disabled={String(data.attr.disabled??"")=="true"} style="
+<img src="/file/{data.attr.source}" alt="" class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">
