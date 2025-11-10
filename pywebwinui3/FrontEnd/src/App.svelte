@@ -47,13 +47,7 @@
 	hashChange();
 	(async () => {
 		while (!window.hasOwnProperty("pywebview")) await new Promise(resolve => setTimeout(resolve, 100));
-		let appConfig: any;
-		while (true) {
-			try {
-				appConfig = await window.pywebview.api.init();
-				break;
-			} catch {}
-		}
+		let appConfig = await window.pywebview.api.init();
 		values.update(dict=>{
 			return { ...dict, ...appConfig };
 		});

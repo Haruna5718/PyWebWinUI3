@@ -1,6 +1,5 @@
 import webview
 import threading
-import mimetypes
 import json
 import xml.etree.ElementTree
 from pathlib import Path
@@ -96,6 +95,7 @@ class MainWindow:
 	def onExit(self):
 		def decorator(func):
 			self.api._window.events.closed += func
+			return func
 		return decorator
 
 	def notice(self, level:int, title:str, description:str):
@@ -164,16 +164,14 @@ class MainWindow:
 		})
 
 	def start(self, debug=False):
-		@self.server.route('/file/<filepath:path>')
+		@self.server.route('/')
+		@self.server.route('/PYWEBWINUI3/<filepath:path>')
+		def web(filepath=None):
+			return bottle.static_file(filepath or "index.html", root=str(Path(__file__).resolve().relative_to(self.basePath).parent/("web/PYWEBWINUI3" if filepath else "web")))
+		
+		@self.server.route('/<filepath:path>')
 		def file(filepath):
 			return bottle.static_file(filepath, root=str(self.basePath))
-		
-		@self.server.route('/')
-		@self.server.route('/<filepath:path>')
-		def index(filepath="index.html"):
-			return bottle.static_file(filepath, root=str(Path(__file__).resolve().relative_to(self.basePath).parent/"web"))
-		
-		mimetypes.add_type("application/javascript", ".js")
 		webview.start(self._setup,debug=debug)
 
 class WebviewAPI:
