@@ -82,12 +82,13 @@
 			<span class="icon"></span>
 		</button>
 		<section>
-			{#each Object.entries($values["system.pages"] ?? {}) as val}
-				<button class:settingButton={val[1]["attr"]?.["icon"]==""} class:Select={hash==val[0]} on:click={()=>location.hash=val[0]}>
-					<span class="icon">{val[1]["attr"]?.["icon"] ?? ""}</span>
-					<span>{val[1]["attr"]?.["name"] ?? val[0]}</span>
-					{#if format(val[1]['attr']?.['state']??"")}
-						<span class="badge l{format(val[1]['attr']?.['state']??"")}">{format(val[1]["attr"]?.["badge"]??"")??""}</span>
+			{#each Object.keys($values["system.pages"] ?? {}).sort() as key}
+				{@const val = $values["system.pages"][key]}
+				<button class:settingButton={val["attr"]?.["icon"]==""} class:Select={hash==key} on:click={()=>location.hash=key}>
+					<span class="icon">{val["attr"]?.["icon"] ?? ""}</span>
+					<span>{val["attr"]?.["name"] ?? key}</span>
+					{#if format(val['attr']?.['state']??"")}
+						<span class="badge l{format(val['attr']?.['state']??"")}">{format(val["attr"]?.["badge"]??"")??""}</span>
 					{/if}
 				</button>
 			{/each}
@@ -336,6 +337,7 @@
 		height: 100vh;
 	}
 	header{
+		user-select: none;
 		grid-column: span 2;
 		display: flex;
 		font-size: 13px;
@@ -378,6 +380,7 @@
 		}
 	}
 	nav{
+		user-select: none;
 		display: grid;
 		padding: 5px 0px 5px 5px;
 		gap: 5px;

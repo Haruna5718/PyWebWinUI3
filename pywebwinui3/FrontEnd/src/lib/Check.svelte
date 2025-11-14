@@ -47,10 +47,6 @@
         display: flex;
         gap: 4px;
         align-items: center;
-        label{
-            cursor: pointer;
-            user-select: none;
-        }
         input{
             cursor: pointer;
             order: 1;

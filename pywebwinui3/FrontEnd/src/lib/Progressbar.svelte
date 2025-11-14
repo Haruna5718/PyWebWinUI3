@@ -3,7 +3,7 @@
     export let data: { [key: string]: any };
 </script>
 <span class="main {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
-    width: {data.attr.width ?? 'auto'};
+    width: {data.attr.width ?? '160px'};
 ">
     <span />
     <div style="width: {$values[data.attr.value]??0}%"/>
@@ -24,7 +24,6 @@
     .main{
         align-self: center;
         height: 4px;
-        width: 160px;
         border-radius: 2px;
         overflow: hidden;
         span{

@@ -1,6 +1,7 @@
 import webview
 import threading
 import json
+import re
 import xml.etree.ElementTree
 from pathlib import Path
 import logging
@@ -119,7 +120,7 @@ class MainWindow:
 		self.values[key]=value
 		if self.running:
 			if sync:
-				self.api._window.evaluate_js(f"window.setValue('{key}', {json.dumps(value)}, false)")
+				threading.Thread(target=self.api._window.evaluate_js, args=(f"window.setValue('{key}', {json.dumps(value)}, false)",), daemon=True).start()
 			if broadcast:
 				self.events.setValue.set(key,key,beforevalue,value)
 		return value
@@ -130,33 +131,31 @@ class MainWindow:
 				self.setValue('system.color', color)
 				logger.debug("Accent color change detected")
 	
-	def setupImage(self, path:str):
-		logger.debug(f"Image preload: {path}")
-		self.api._window.evaluate_js(f"fetch('/file/{path}')")
+	def sourcePreload(self, path:str):
+		path = re.sub(r"(?<!\\)\{(.*?)\}", lambda m: str(self.values.get(m.group(1), m.group(0))), path)
+		logger.debug(f"Source preloaded: {path}")
+		self.api._window.evaluate_js(f"fetch('{path}')")
 		pass
 
-	def _imagePreload(self, node: dict):
+	def _sourcePreload(self, node: dict):
 		if "source" in node["attr"]:
-			self.api._window.events._pywebviewready += lambda: self.setupImage(node['attr']['source'])
-		[self._imagePreload(i) for i in node["child"]]
+			self.api._window.events._pywebviewready += lambda: self.sourcePreload(node['attr']['source'])
+		[self._sourcePreload(i) for i in node["child"]]
 
-	def addSettings(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None,imagePreload=True):
+	def _addpage(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None,imagePreload=True):
 		if pageFile and not pageData:
 			pageData = loadPage(pageFile)
-		if not pageData:
-			return logger.error("Invalid page data provided")
 		if imagePreload:
-			self._imagePreload(pageData)
-		logger.debug(f"Page added: {pageData.get('attr').get('path')}")
+			threading.Thread(target=self._sourcePreload, args=(pageData,), daemon=True).start()
+		return pageData
+
+	def addSettings(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None,imagePreload=True):
+		pageData = self._addpage(pageFile,pageData,imagePreload)
+		logger.debug(f"Setting page: {pageData.get('attr').get('path')}")
 		return self.setValue('system.settings', pageData)
 
 	def addPage(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None,imagePreload=True):
-		if pageFile and not pageData:
-			pageData = loadPage(pageFile)
-		if not pageData:
-			return logger.error("Invalid page data provided")
-		if imagePreload:
-			self._imagePreload(pageData)
+		pageData = self._addpage(pageFile,pageData,imagePreload)
 		logger.debug(f"Page added: {pageData.get('attr').get('path')}")
 		return self.setValue('system.pages', {
 			**(self.values["system.pages"] or {}),

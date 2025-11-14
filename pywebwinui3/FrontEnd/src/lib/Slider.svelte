@@ -1,7 +1,7 @@
 <script lang="ts">
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
-    let min,max,step,value,percent;
+    let min,max,step,value,percent,width;
     $:{
         min=Number(data.attr.min ?? 0)
         max=Number(data.attr.max ?? 100)
@@ -11,8 +11,8 @@
     }
     let click = false;
 </script>
-<span class="container" class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"}>
-    <span class="main" style="width: {data.attr.width ?? 'auto'};">
+<span class="container" style="{data.attr.type=='vertical'?'height':'width'}: {width}px;" class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"}>
+    <span class="main" style="width: {data.attr.width ?? 'auto'};" bind:clientWidth={width}>
         <span style="width: calc({percent*100}% {percent>0.5?'-':'+'} {Math.abs(0.5-percent)*18}px);">
             {#if click}
                 <div class="rotater">
@@ -45,16 +45,16 @@
     @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
 
     .container{
+        transition: none;
         display: flex;
         &:not(.vertical){
             height: 24px;
         }
         &.vertical{
-            height: 160px;
             width: 24px;
             .main{
                 top: 0.5px;
-                right: calc(300% + 9.5px);
+                right: calc(200% + 4px);
                 rotate: -90deg;
                 span{
                     .rotater{
@@ -68,11 +68,11 @@
             }
         }
         .main{
+            transition: none;
             align-self: center;
             background-color: var(--Slider-BackFillColor);
             box-shadow: 0 1px 0 0 #00000030;
             height: 4px;
-            width: 160px;
             border-radius: 2px;
             span{
                 transition: all 0.1s ease-out, width 0s;

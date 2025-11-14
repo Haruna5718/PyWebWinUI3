@@ -40,9 +40,6 @@
         display: flex;
         gap: 4px;
         align-items: center;
-        label{
-            cursor: pointer;
-        }
         input{
             cursor: pointer;
             order: 1;
