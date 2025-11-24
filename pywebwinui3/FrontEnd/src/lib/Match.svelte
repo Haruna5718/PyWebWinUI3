@@ -8,5 +8,3 @@
         <Component rawData={val}/>
     {/each}
 {/if}
-<style lang="scss">
-</style>

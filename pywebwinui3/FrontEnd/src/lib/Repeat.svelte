@@ -43,5 +43,3 @@
         {/each}
     {/if}
 {/if}
-<style lang="scss">
-</style>

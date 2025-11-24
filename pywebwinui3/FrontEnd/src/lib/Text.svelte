@@ -37,7 +37,7 @@
     }
     a{
         text-decoration: none;
-        color: var(--AccentFillColorSecondaryBrush);
+        color: var(--AccentTextFillColorPrimaryBrush);
         outline: none ;
     }
 </style>

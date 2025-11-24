@@ -24,26 +24,6 @@
     </span>
 </span>
 <style lang="scss">
-    $light: (
-        Slider-BackFillColor: #868686,
-        Slider-MenuFillColor: #f9f9f9,
-        Slider-MenuBorderColor: #ededed,
-        Slider-ThumbOuterColor: #ffffff,
-        Slider-ThumbBorderColor: #00000020,
-    );
-    $dark: (
-        Slider-BackFillColor: #9a9a9a,
-        Slider-MenuFillColor: #2c2c2c,
-        Slider-MenuBorderColor: #1f1f1f,
-        Slider-ThumbOuterColor: #454545,
-        Slider-ThumbBorderColor: #ffffff20,
-    );
-    @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
-    :global(.light){@include apply-theme($light);}
-    :global(.dark){@include apply-theme($dark);}
-    @media (prefers-color-scheme:light){:global(.system){@include apply-theme($light);}}
-    @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
-
     .container{
         transition: none;
         display: flex;
@@ -68,8 +48,8 @@
         .main{
             transition: none;
             align-self: center;
-            background-color: var(--Slider-BackFillColor);
-            box-shadow: 0 1px 0 0 #00000030;
+            background-color: var(--ControlStrongFillColorDefaultBrush);
+            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
             height: 4px;
             border-radius: 2px;
             span{
@@ -77,7 +57,7 @@
                 border-radius: 2px;
                 position: absolute;
                 inset: 0;
-                background-color: var(--AccentFillColorSecondaryBrush);
+                background-color: var(--AccentFillColorDefaultBrush);
                 .rotater{
                     position: absolute;
                     z-index: 200;
@@ -85,12 +65,12 @@
                     right: 0;
                     top: -40px;
                     div{
-                        border: 1.5px solid var(--Slider-MenuBorderColor);
-                        background-color: var(--Slider-MenuFillColor);
+                        border: 1.5px solid var(--SurfaceStrokeColorFlyoutBrush);
+                        background-color: var(--SolidBackgroundFillColorQuarternaryBrush);
                         border-radius: 4px;
                         padding: 2px 6px;
                         font-size: 14px;
-                        box-shadow: 0 1px 1px 0 #00000030;
+                        box-shadow: 0 1px 1px 0 var(--SmokeFillColorDefaultBrush);
                     }
                 }
             }
@@ -105,9 +85,9 @@
                     cursor: pointer;
                     appearance: none;
                     transition: all 0.1s ease-in-out;
-                    border: 5px solid var(--Slider-ThumbOuterColor);
-                    box-shadow: 0 1px 0 1px #00000030, 0 0 0 1px var(--Slider-ThumbBorderColor);
-                    background-color: var(--AccentFillColorSecondaryBrush);
+                    border: 5px solid var(--ControlSolidFillColorDefaultBrush);
+                    box-shadow: 0 1px 0 1px var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlSolidFillColorDefaultBrush);
+                    background-color: var(--AccentFillColorDefaultBrush);
                     width: 18px;
                     height: 18px;
                     border-radius: 10px;

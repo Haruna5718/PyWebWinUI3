@@ -9,18 +9,6 @@
     <div style="width: {$values[data.attr.value]??0}%"/>
 </span>
 <style lang="scss">
-    $light: (
-        Progressbar-BackFillColor: #868686,
-    );
-    $dark: (
-        Progressbar-BackFillColor: #9a9a9a,
-    );
-    @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
-    :global(.light){@include apply-theme($light);}
-    :global(.dark){@include apply-theme($dark);}
-    @media (prefers-color-scheme:light){:global(.system){@include apply-theme($light);}}
-    @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
-
     .main{
         align-self: center;
         height: 4px;
@@ -35,13 +23,13 @@
             position: absolute;
             inset: 0;
             border-radius: 2px;
-            background-color: var(--AccentFillColorSecondaryBrush);
-            box-shadow: 0 1px 0 0 #00000030;
+            background-color: var(--AccentFillColorDefaultBrush);
+            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
         }
         &.progress{
             span{
-                background-color: var(--Progressbar-BackFillColor);
-                box-shadow: 0 1px 0 0 #00000030;
+                background-color: var(--ControlStrongFillColorDefaultBrush);
+                box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
             }
 
         }

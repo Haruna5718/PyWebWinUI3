@@ -21,26 +21,6 @@
     <input id="switch.{data.attr.value}" type="checkbox" checked={$values[data.attr.value]} on:input={()=>{window.setValue(data.attr.value, !$values[data.attr.value])}}/>
 </span>
 <style lang="scss">
-    $light: (
-        Switch-FillColor: #f7f7f7,
-        Switch-FillHoverColor: #eeeeee,
-        Switch-FillActiveColor: #e5e5e5,
-        Switch-BorderColor: #5e5e5e,
-        Switch-BorderHoverColor: #5b5b5b,
-    );
-    $dark: (
-        Switch-FillColor: #2d2d2d,
-        Switch-FillHoverColor: #3b3b3b,
-        Switch-FillActiveColor: #414141,
-        Switch-BorderColor: #cfcfcf,
-        Switch-BorderHoverColor: #d3d3d3,
-    );
-    @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
-    :global(.light){@include apply-theme($light);}
-    :global(.dark){@include apply-theme($dark);}
-    @media (prefers-color-scheme:light){:global(.system){@include apply-theme($light);}}
-    @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
-
     .main{
         display: flex;
         align-self: center;
@@ -62,50 +42,50 @@
         input{
             order: 1;
             appearance: none;
-            background-color: var(--Switch-FillColor);
+            background-color: var(--ControlAltFillColorTransparentBrush);
             width: 46px;
             border-radius: 12px;
-            box-shadow: 0 1px 0 0 #00000030, 0 0 0 1.5px var(--Switch-BorderColor) inset;
+            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1.5px var(--ControlStrongStrokeColorDefaultBrush) inset;
             height: 24px;
             cursor: pointer;
             &::before{
                 content: "";
                 margin: 5px;
                 position: absolute;
-                background-color: var(--Switch-BorderColor);
+                background-color: var(--ControlStrongFillColorDefaultBrush);
                 width: 14px;
                 border-radius: 8px;
                 height: 14px;
                 transform: translateX(0px);
             }
             &:hover{
-                background-color: var(--Switch-FillHoverColor);
+                background-color: var(--ControlAltFillColorTertiaryBrush);
                 &::before{
-                    background-color: var(--Switch-BorderHoverColor);
-                    box-shadow: 0 0 0 1px var(--Switch-BorderHoverColor);
+                    background-color: var(--ControlStrongFillColorDefaultBrush);
+                    box-shadow: 0 0 0 1px var(--ControlStrongFillColorDefaultBrush);
                 }
             }
             &:active{
-                background-color: var(--Switch-FillActiveColor);
+                background-color: var(--ControlAltFillColorQuarternaryBrush);
                 &::before{
                     width: 19px;
                 }
             }
             &:checked{
-                background-color: var(--AccentFillColorSecondaryBrush);
-                box-shadow: 0 1px 0 0 #00000030;
+                background-color: var(--AccentFillColorDefaultBrush);
+                box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
                 &::before{
                     background-color: var(--TextOnAccentFillColorPrimaryBrush);
                     transform: translateX(22px);
                 }
                 &:hover{
-                    background-image: linear-gradient(var(--AccentHoverCoverColor));
+                    background-color: var(--AccentFillColorSecondaryBrush);
                     &::before{
                         box-shadow: 0 0 0 1px var(--TextOnAccentFillColorPrimaryBrush);
                     }
                 }
                 &:active{
-                    background-image: linear-gradient(var(--AccentActiveCoverColor));
+                    background-color: var(--AccentFillColorTertiaryBrush);
                     &::before{
                         transform: translateX(17px);
                     }

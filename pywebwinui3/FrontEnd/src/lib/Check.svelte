@@ -23,26 +23,6 @@
     />
 </span>
 <style lang="scss">
-    $light: (
-        Check-FillColor: #ededed,
-        Check-HoverColor: #e5e5e5,
-        Check-ActiveColor: #dcdcdc,
-        Check-BorderColor: #858585,
-        Check-BorderActiveColor: #b1b1b1,
-    );
-    $dark: (
-        Check-FillColor: #272727,
-        Check-HoverColor: #343434,
-        Check-ActiveColor: #3a3a3a,
-        Check-BorderColor: #9e9e9e,
-        Check-BorderActiveColor: #4f4f4f,
-    );
-    @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
-    :global(.light){@include apply-theme($light);}
-    :global(.dark){@include apply-theme($dark);}
-    @media (prefers-color-scheme:light){:global(.system){@include apply-theme($light);}}
-    @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
-
     span{
         display: flex;
         gap: 4px;
@@ -53,18 +33,17 @@
             border-radius: 4px;
             height: 20px;
             width: 20px;
-            background-color: var(--Check-FillColor);
-            box-shadow: 0 0 0 1px var(--Check-BorderColor) inset;
+            background-color: var(--ControlAltFillColorTransparentBrush);
+            box-shadow: 0 0 0 1px var(--ControlStrongStrokeColorDefaultBrush) inset;
             appearance: none;
             &:hover{
-                background-color: var(--Check-HoverColor);
+                background-color: var(--ControlAltFillColorTertiaryBrush);
             }
             &:active{
-                background-color: var(--Check-ActiveColor);
-                box-shadow: 0 0 0 1px var(--Check-BorderActiveColor) inset;
+                background-color: var(--ControlAltFillColorQuarternaryBrush);
             }
             &:checked,&:indeterminate{
-                background-color: var(--AccentFillColorSecondaryBrush);
+                background-color: var(--AccentFillColorDefaultBrush);
                 box-shadow: none;
                 &::before{
                     font-weight: bold;
@@ -81,10 +60,10 @@
                     content: '';
                 }
                 &:hover{
-                    background-image: linear-gradient(var(--AccentHoverCoverColor));
+                    background-color: var(--AccentFillColorSecondaryBrush);
                 }
                 &:active{
-                    background-image: linear-gradient(var(--AccentActiveCoverColor));
+                    background-color: var(--AccentFillColorTertiaryBrush);
                 }
             }
         }

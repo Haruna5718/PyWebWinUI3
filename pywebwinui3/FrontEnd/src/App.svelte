@@ -1,5 +1,6 @@
 <script context="module">
   	import { writable, get } from 'svelte/store';
+	import './lib/ThemeResources.scss';
 
 	export const values = writable({
 		"system.goBack": true,
@@ -58,7 +59,11 @@
 <svelte:window on:hashchange={hashChange}></svelte:window>
 <main class={$values['system.theme']} style="
 	grid-template-columns: {isNavOpen ? 230 : 50}px 1fr;
-	{['Light3','Light2','Light1','Dark1','Dark2','Dark3'].map((v,i)=>`--SystemAccentColor${v}:${$values['system.color'][i]};`).join('')}
+	{['Light3','Light2','Light1','','Dark1','Dark2','Dark3'].map((v,i)=>`--SystemAccentColor${v}:${$values['system.color'][i]};`).join('')}
+	--AccentFillColorLightSecondaryBrush: {$values['system.color'][1]}E6;
+	--AccentFillColorLightTertiaryBrush: {$values['system.color'][1]}CC;
+	--AccentFillColorDarkSecondaryBrush: {$values['system.color'][4]}E6;
+	--AccentFillColorDarkTertiaryBrush: {$values['system.color'][4]}CC;
 ">
 	<header>
 		<div class="pywebview-drag-region"></div>
@@ -72,7 +77,7 @@
 			<p>{$values["system.title"]??""}</p>
 		</div>
 		{#if $values["system.pinTop"]}
-			<button on:click={()=>window.pywebview.api.setTop(!$values["system.isOnTop"])}>{#if $values["system.isOnTop"]}<span style="position:absolute;left:8px;"></span>{/if}</button>
+			<button on:click={()=>window.pywebview.api.setTop(!$values["system.isOnTop"])}>{$values["system.isOnTop"]?'':''}</button>
 		{/if}
 		<button on:click={()=>window.pywebview.api.minimize()}></button>
 		<button on:click={()=>window.pywebview.api.destroy()}></button>
@@ -136,77 +141,7 @@
 	</div>
 </main>
 <style lang="scss">
-	$light: (
-        AccentFillColorDefaultBrush: var(--SystemAccentColorDark1),
-		AccentFillColorSecondaryBrush: var(--SystemAccentColorDark2),
-		AccentFillColorTertiaryBrush: var(--SystemAccentColorDark3),
-
-		AccentFillColorBackgroundBrush: #ffffff,
-
-		AccentHoverCoverColor: #ffffff15,
-		AccentActiveCoverColor: #ffffff30,
-
-		TextFillColorPrimaryBrush: #1a1a1a,
-		TextFillColorSecondaryBrush: #5c5c5c,
-		TextFillColorTertiaryBrush: #868686,
-		TextFillColorDisabledBrush: #9b9b9b,
-
-		TextOnAccentFillColorPrimaryBrush: #ffffff,
-		TextOnAccentFillColorSecondaryBrush: #ffffff,
-		TextOnAccentFillColorDisabledBrush: #ffffff,
-		TextOnAccentFillColorSelectedTextBrush: #ffffff,
-
-		SystemFillColorSuccessBrush: #0F7B0F,
-		SystemFillColorCautionBrush: #9D5D00,
-		SystemFillColorCriticalBrush: #C42B1C,
-
-		SystemFillColorSuccessBackgroundBrush: #DFF6DD,
-		SystemFillColorCautionBackgroundBrush: #FFF4CE,
-		SystemFillColorCriticalBackgroundBrush: #FDE7E9,
-
-		BackFillColor: #f3f3f3,
-		ScrollbarColor: #8c8c8c,
-		NavButtonHoverColor: #00000009,
-		NavButtonActiveColor: #00000006,
-    );
-    $dark: (
-        AccentFillColorDefaultBrush: var(--SystemAccentColorLight1),
-		AccentFillColorSecondaryBrush: var(--SystemAccentColorLight2),
-		AccentFillColorTertiaryBrush: var(--SystemAccentColorLight3),
-		
-		AccentFillColorBackgroundBrush: #2d2d2d,
-
-		AccentHoverCoverColor: #00000010,
-		AccentActiveCoverColor: #00000020,
-
-		TextFillColorPrimaryBrush: #ffffff,
-		TextFillColorSecondaryBrush: #cccccc,
-		TextFillColorTertiaryBrush: #969696,
-		TextFillColorDisabledBrush: #717171,
-
-		TextOnAccentFillColorPrimaryBrush: #000000,
-		TextOnAccentFillColorSecondaryBrush: #101010,
-		TextOnAccentFillColorDisabledBrush: #969696,
-		TextOnAccentFillColorSelectedTextBrush: #ffffff,
-
-		SystemFillColorSuccessBrush: #6ccb5f,
-		SystemFillColorCautionBrush: #fce100,
-		SystemFillColorCriticalBrush: #ff99a4,
-
-		SystemFillColorSuccessBackgroundBrush: #393d1b,
-		SystemFillColorCautionBackgroundBrush: #433519,
-		SystemFillColorCriticalBackgroundBrush: #442726,
-
-		BackFillColor: #202020,
-		ScrollbarColor: #9a9a9a,
-		NavButtonHoverColor: #ffffff0e,
-		NavButtonActiveColor: #ffffff0a,
-    );
-    @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
-    :global(.light){@include apply-theme($light);}
-    :global(.dark){@include apply-theme($dark);}
-    @media (prefers-color-scheme:light){:global(.system){@include apply-theme($light);}}
-    @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
+	// @import './lib/Themeresources.scss';
 	.nofication{
 		display: flex;
 		gap: 4px;
@@ -225,10 +160,10 @@
 			padding: 6px;
 			box-shadow: 0 0 4px 1px #00000030;
 			&.l0{
-				background-color: var(--AccentFillColorBackgroundBrush);
+				background-color: var(--SystemFillColorSolidAttentionBackgroundBrush);
 				.icon{
-					color: var(--AccentFillColorBackgroundBrush);
-					background-color: var(--AccentFillColorSecondaryBrush);
+					color: var(--SystemFillColorSolidAttentionBackgroundBrush);
+					background-color: var(--SystemFillColorAttentionBrush);
 				}
 			}
 			&.l1{
@@ -258,7 +193,7 @@
 				align-self: flex-start;
 				justify-content: center;
 				font-size: 18px;
-				padding: 0 0 1px 1px;
+				padding: 0 0 0.5px 0.5px;
 				margin: 9px 0 9px 9px;
 				height: 16px;
 				width: 16px;
@@ -281,7 +216,10 @@
 				border-radius: 4px;
 				align-self: flex-start;
 				&:hover{
-					background-color: var(--NavButtonHoverColor);
+					background-color: var(--SubtleFillColorSecondaryBrush);
+				}
+				&:active{
+					background-color: var(--SubtleFillColorTertiaryBrush);
 				}
 			}
 		}
@@ -335,7 +273,7 @@
 	main{
 		display: grid;
 		grid-template-rows: 50px 1fr;
-		background-color: var(--BackFillColor);
+		background-color: var(--SolidBackgroundFillColorBaseBrush);
 		color: var(--TextFillColorPrimaryBrush);
 		width: 100vw;
 		height: 100vh;
@@ -371,11 +309,11 @@
 			margin: 5px;
 			border-radius: 4px;
 			&:hover{
-				background-color: var(--NavButtonHoverColor);
+				background-color: var(--SubtleFillColorSecondaryBrush);
 				color: var(--TextFillColorSecondaryBrush);
 			}
 			&:active{
-				background-color: var(--NavButtonActiveColor);
+				background-color: var(--SubtleFillColorTertiaryBrush);
 			}
 			&:last-child:hover{
 				background-color: var(--SystemFillColorCriticalBackgroundBrush);
@@ -416,7 +354,7 @@
 				transition: all 0.1s ease-out, right 0s, top 0s;
 				color: var(--TextOnAccentFillColorPrimaryBrush);
 				&.l0{
-					background-color: var(--AccentFillColorSecondaryBrush);
+					background-color: var(--SystemFillColorAttentionBrush);
 				}
 				&.l1{
 					background-color: var(--SystemFillColorSuccessBrush);
@@ -445,13 +383,13 @@
 				height: 6px;
 			}
 			&.Select:hover{
-				background-color: var(--NavButtonActiveColor);
+				background-color: var(--SubtleFillColorTertiaryBrush);
 			}
 			&.Select,&.Select:active,&:not(.Select):hover{
-				background-color: var(--NavButtonHoverColor);
+				background-color: var(--SubtleFillColorSecondaryBrush);
 			}
 			&:not(.Select):active{
-				background-color: var(--NavButtonActiveColor);
+				background-color: var(--SubtleFillColorTertiaryBrush);
 			}
 			&.Select::before{
 				height: 16px;

@@ -8,20 +8,6 @@
     {data.text}
 </button>
 <style lang="scss">
-    $light: (
-        SelectOption-HoverColor: #f0f0f0,
-        SelectOption-ActiveColor: #f3f3f3,
-    );
-    $dark: (
-        SelectOption-HoverColor: #383838,
-        SelectOption-ActiveColor: #343434,
-    );
-    @mixin apply-theme($m){@each $k, $v in $m {--#{$k}: #{$v};}}
-    :global(.light){@include apply-theme($light);}
-    :global(.dark){@include apply-theme($dark);}
-    @media (prefers-color-scheme:light){:global(.system){@include apply-theme($light);}}
-    @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
-
     button{
         text-align: left;
         align-self: stretch;
@@ -29,10 +15,10 @@
         background-color: transparent;
         padding: 6px 12px;
         &.select,&.select:active,&:hover:not(:active){
-            background-color: var(--SelectOption-HoverColor);
+            background-color: var(--SubtleFillColorSecondaryBrush);
         }
         &.select:hover:not(:active),&:active{
-            background-color: var(--SelectOption-ActiveColor);
+            background-color: var(--SubtleFillColorTertiaryBrush);
         }
         &.select:active::before{
             height: 6px;
@@ -46,7 +32,7 @@
             width: 3px;
             height: 16px;
             transform: translateY(-50%);
-            background-color: var(--AccentFillColorSecondaryBrush);
+            background-color: var(--AccentFillColorDefaultBrush);
         }
     }
 </style>
