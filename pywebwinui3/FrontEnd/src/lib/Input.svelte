@@ -2,6 +2,7 @@
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
     let ispasswordShow = false
+    let padding
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? 'auto'};
@@ -14,15 +15,16 @@
         min={data.attr.min}
         max={data.attr.max}
         value={$values[data.attr.value]}
+        style="padding-right: {(padding??10)-2}px;"
     />
     {#if data.attr.type=="number"}
-        <span class="buttons">
+        <span class="buttons" bind:clientWidth={padding}>
             <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
             <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])-1)}></button>
         </span>
     {/if}
     {#if data.attr.type=="password"}
-        <span class="buttons">
+        <span class="buttons" bind:clientWidth={padding}>
             <button on:click={()=>ispasswordShow=!ispasswordShow}>{ispasswordShow?"":""}</button>
         </span>
     {/if}
@@ -104,9 +106,6 @@
             padding: 9px 8px 8px 8px;
             border-bottom-width: 2.5px;
             border-bottom-color: var(--AccentFillColorSecondaryBrush);
-        }
-        &[type=number]{
-            padding-right: 65px;
         }
     }
 </style>

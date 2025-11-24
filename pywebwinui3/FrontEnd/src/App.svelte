@@ -111,11 +111,15 @@
 			<Component rawData={$values["system.settings"]}/>
 		{:else if $values["system.pages"]?.[hash]}
 			<Component rawData={$values["system.pages"][hash]}/>
-		<!-- {:else}
+		{:else if $values["system.pages"]==null}
+			<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+				<p style="color: var(--TextFillColorDisabledBrush)">Initializing...</p>
+			</div>
+		{:else}
 			<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
 				<h1>404 Not Found</h1>
-				<p>The page '{hash}' does not exist.</p>
-			</div> -->
+				<p style="color: var(--TextFillColorDisabledBrush)">The page '{hash}' does not exist.</p>
+			</div>
 		{/if}
 	{/key}
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
-    let min,max,step,value,percent,width;
+    let min,max,step,value,percent,width,height;
     $:{
         min=Number(data.attr.min ?? 0)
         max=Number(data.attr.max ?? 100)
@@ -11,8 +11,8 @@
     }
     let click = false;
 </script>
-<span class="container" style="{data.attr.type=='vertical'?'height':'width'}: {width}px;" class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"}>
-    <span class="main" style="width: {data.attr.width ?? 'auto'};" bind:clientWidth={width}>
+<span class="container" style="{data.attr.type=='vertical'?'height':'width'}: {data.attr.width ?? '160px'};" bind:clientWidth={width} bind:clientHeight={height} class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"}>
+    <span class="main" style="width: {data.attr.type=='vertical'?height:width}px; right: {(data.attr.type=='vertical'?height-24:0)/2}px" bind:clientWidth={width}>
         <span style="width: calc({percent*100}% {percent>0.5?'-':'+'} {Math.abs(0.5-percent)*18}px);">
             {#if click}
                 <div class="rotater">
@@ -53,8 +53,6 @@
         &.vertical{
             width: 24px;
             .main{
-                top: 0.5px;
-                right: calc(200% + 4px);
                 rotate: -90deg;
                 span{
                     .rotater{

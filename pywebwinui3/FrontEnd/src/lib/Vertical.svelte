@@ -11,7 +11,7 @@
 </span>
 <style lang="scss">
     span{
-        flex-wrap: wrap;
+        transition: none;
         align-self: stretch;
         display: flex;
 		flex-direction: column;

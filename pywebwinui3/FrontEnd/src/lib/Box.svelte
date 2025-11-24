@@ -4,6 +4,7 @@
 <div style="
     gap: {data.attr.gap ?? 'inherit'};
     border-radius: {data.attr.round ?? '4px'};
+    border-width: {data.attr.border ?? '1.5px'};
     padding: {data.attr.padding ?? '16px'};
     background-color: {data.attr.background ?? 'var(--Box-FillColor)'};
     align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
@@ -26,12 +27,12 @@
     @media (prefers-color-scheme:dark){:global(.system){@include apply-theme($dark);}}
 
     div{
-        flex-wrap: wrap;
         display: flex;
         align-items: center;
         flex-direction: column;
         align-self: stretch;
 
-        border: 1.5px solid var(--Box-BorderColor);
+        border-color: var(--Box-BorderColor);
+        border-style: solid;
     }
 </style>

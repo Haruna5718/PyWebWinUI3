@@ -62,7 +62,7 @@
         text: format(rawData.text),
         child: rawData.child
     }}
-    {#if ["Select","Slider","Switch","Text","Line","Input","Progressbar","Button","Check","Radio","Webview","Image","If","Repeat","Option","Match"].includes(data.tag)}
+    {#if ["Select","Slider","Switch","Text","Line","Input","Progressbar","Button","Check","Radio","Webview","Image","If","Repeat","Option","Match","Expender"].includes(data.tag)}
         <svelte:component {data} this={Components[data.tag]} />
     {:else}
         <svelte:component {data} this={Components[data.tag]}>

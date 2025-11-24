@@ -86,9 +86,6 @@
             margin-left: 4px;
             align-items: center;
         }
-        p{
-            min-width: max-content;
-        }
 	}
     .menu{
         display: flex;

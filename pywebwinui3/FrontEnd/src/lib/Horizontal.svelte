@@ -9,6 +9,7 @@
 </span>
 <style lang="scss">
     span{
+        transition: none;
         flex-wrap: wrap;
         align-self: stretch;
         display: flex;
