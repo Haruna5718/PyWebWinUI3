@@ -47,7 +47,7 @@
             flex-direction: row;
             border-radius: inherit;
             
-            border: 1.5px solid var(--CardStrokeColorDefaultSolidBrush);
+            border: 1px solid var(--CardStrokeColorDefaultSolidBrush);
             background-color: var(--CardBackgroundFillColorDefaultBrush);
             span{
                 display: flex;
@@ -64,11 +64,11 @@
             }
             &:hover{
                 background-color: var(--ControlFillColorSecondaryBrush);
-                border-color: transparent;
+                border-color: var(--ControlStrokeColorDefaultBrush);
             }
             &:active{
                 background-color: var(--CardBackgroundTertiaryBrush);
-                border-color: var(--CardStrokeColorDefaultSolidBrush);
+                border-color: var(--ControlStrokeColorDefaultBrush);
                 .arrow{
                     transform: translateY(-1px);
                 }
@@ -86,12 +86,15 @@
             align-items: center;
             align-self: stretch;
             flex-direction: column;
-            border: 1.5px solid var(--CardStrokeColorDefaultSolidBrush);
+            border: 1px solid var(--CardStrokeColorDefaultSolidBrush);
             border-top: none;
             border-radius: inherit;
+            background-color: var(--CardBackgroundFillColorDefaultBrush);
             border-top-left-radius: 0;
             border-top-right-radius: 0;
-            background-color: var(--CardBackgroundFillColorDefaultBrush);
+            &:not(:last-child){
+                border-radius: 0;
+            }
         }
     }
 </style>

@@ -4,7 +4,7 @@
 
     if ($values[data.attr.optionValue]==data.attr.value) window.setValue(`${data.attr.optionValue}._Temp`, data.text);
 </script>
-<button style={data.attr.style} class:select={$values[data.attr.optionValue]==data.attr.value} on:click={()=>{window.setValue(data.attr.optionValue, data.attr.value);window.setValue(`${data.attr.optionValue}._Temp`, data.text)}}>
+<button class:select={$values[data.attr.optionValue]==data.attr.value} on:click={()=>{window.setValue(data.attr.optionValue, data.attr.value);window.setValue(`${data.attr.optionValue}._Temp`, data.text)}}>
     {data.text}
 </button>
 <style lang="scss">

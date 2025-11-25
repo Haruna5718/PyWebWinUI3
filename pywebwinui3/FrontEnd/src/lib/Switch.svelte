@@ -43,32 +43,31 @@
             order: 1;
             appearance: none;
             background-color: var(--ControlAltFillColorTransparentBrush);
-            width: 46px;
+            width: 48px;
             border-radius: 12px;
-            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1.5px var(--ControlStrongStrokeColorDefaultBrush) inset;
+            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlStrongStrokeColorDefaultBrush) inset;
             height: 24px;
             cursor: pointer;
             &::before{
+                display: flex;
+                margin: 5.5px;
                 content: "";
-                margin: 5px;
-                position: absolute;
                 background-color: var(--ControlStrongFillColorDefaultBrush);
-                width: 14px;
-                border-radius: 8px;
-                height: 14px;
-                transform: translateX(0px);
+                width: 13px;
+                border-radius: 7px;
+                height: 13px;
+                box-shadow: 0 0 0 13px var(--ControlStrongFillColorDefaultBrush) inset;
             }
             &:hover{
                 background-color: var(--ControlAltFillColorTertiaryBrush);
                 &::before{
-                    background-color: var(--ControlStrongFillColorDefaultBrush);
-                    box-shadow: 0 0 0 1px var(--ControlStrongFillColorDefaultBrush);
+                    box-shadow: 0 0 0 1px var(--ControlStrongFillColorDefaultBrush), 0 0 0 1px var(--ControlStrongFillColorDefaultBrush), 0 0 0 13px var(--ControlStrongFillColorDefaultBrush) inset;
                 }
             }
             &:active{
                 background-color: var(--ControlAltFillColorQuarternaryBrush);
                 &::before{
-                    width: 19px;
+                    width: 22px;
                 }
             }
             &:checked{
@@ -76,18 +75,13 @@
                 box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
                 &::before{
                     background-color: var(--TextOnAccentFillColorPrimaryBrush);
-                    transform: translateX(22px);
+                    justify-self: right;
+                    box-shadow: none;
                 }
                 &:hover{
                     background-color: var(--AccentFillColorSecondaryBrush);
                     &::before{
-                        box-shadow: 0 0 0 1px var(--TextOnAccentFillColorPrimaryBrush);
-                    }
-                }
-                &:active{
-                    background-color: var(--AccentFillColorTertiaryBrush);
-                    &::before{
-                        transform: translateX(17px);
+                        box-shadow: 0 0 0 2px var(--TextOnAccentFillColorPrimaryBrush);
                     }
                 }
             }

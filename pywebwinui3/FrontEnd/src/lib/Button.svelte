@@ -24,7 +24,7 @@
         background-color: var(--ControlFillColorDefaultBrush);
         border-radius: 4px;
         padding: 6px 10px;
-        box-shadow: 0 1px 0 0 #00000030, 0 0 0 1px var(--ControlStrokeColorDefaultBrush) inset;
+        box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlStrokeColorDefaultBrush) inset;
         &:hover{
             background-color: var(--ControlFillColorSecondaryBrush);
         }
@@ -33,7 +33,7 @@
             background-color: var(--ControlFillColorTertiaryBrush);
         }
         &.select{
-            box-shadow: 0 1px 0 0 #00000030;
+            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
             color: var(--TextOnAccentFillColorPrimaryBrush);
             background-color: var(--AccentFillColorDefaultBrush);
             &:hover{

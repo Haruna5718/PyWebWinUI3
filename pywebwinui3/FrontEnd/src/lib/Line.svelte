@@ -2,8 +2,8 @@
     export let data: { [key: string]: any };
 </script>
 <hr style="
-    margin: {data.attr.margin??0};
-    border-width: {data.attr.size??'1'};
+    margin: {data.attr.margin??'0'};
+    border-width: {data.attr.size??'1px'};
     border-color: {data.attr.color??'var(--ControlStrongFillColorDefaultBrush)'};
 ">
 <style lang="scss">

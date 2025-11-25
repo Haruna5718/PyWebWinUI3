@@ -57,10 +57,9 @@
         padding: 9px 8px 9px 8px;
         border-radius: 4px;
         background-color: var(--ControlFillColorDefaultBrush);
-		border: 1.5px solid var(--ControlStrokeColorSecondaryBrush);
+		border: 1px solid var(--ControlStrokeColorDefaultBrush);
         border-bottom: 1.5px solid var(--ControlStrongFillColorDefaultBrush);
         line-height: 1.3em;
-        box-shadow: 0 1px 0 0 #00000030;
         transition: all 0.1s ease-out, padding 0s, border-bottom-width 0s;
         width: 100%;
         height: 100%;
@@ -73,10 +72,7 @@
             opacity: 1;
         }
         &:hover:not(:focus){
-            background-image: linear-gradient(var(--ControlFillColorSecondaryBrush));
-        }
-        &:active{
-            box-shadow: none;
+            background-color: var(--ControlFillColorSecondaryBrush);
         }
         &:focus{
             background-color: var(--ControlFillColorInputActiveBrush);

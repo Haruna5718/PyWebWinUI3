@@ -141,7 +141,6 @@
 	</div>
 </main>
 <style lang="scss">
-	// @import './lib/Themeresources.scss';
 	.nofication{
 		display: flex;
 		gap: 4px;
@@ -158,7 +157,7 @@
 			align-items: center;
 			border-radius: 4px;
 			padding: 6px;
-			box-shadow: 0 0 4px 1px #00000030;
+			box-shadow: 0 0 4px 1px var(--SmokeFillColorDefaultBrush);
 			&.l0{
 				background-color: var(--SystemFillColorSolidAttentionBackgroundBrush);
 				.icon{

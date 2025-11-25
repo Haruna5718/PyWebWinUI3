@@ -4,7 +4,7 @@
 <div style="
     gap: {data.attr.gap ?? 'inherit'};
     border-radius: {data.attr.round ?? '4px'};
-    border-width: {data.attr.border ?? '1.5px'};
+    border-width: {data.attr.border ?? '1px'};
     padding: {data.attr.padding ?? '16px'};
     background-color: {data.attr.background ?? 'var(--CardBackgroundFillColorDefaultBrush)'};
     align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
