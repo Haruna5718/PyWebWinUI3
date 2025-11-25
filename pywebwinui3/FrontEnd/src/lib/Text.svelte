@@ -2,23 +2,13 @@
     export let data: { [key: string]: any };
 </script>
 
-{#if data.attr.url}
-    <a class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} target="_blank" href={data.attr.url} style="
-        margin: {data.attr.margin ?? 0};
-        {data.attr.color?`color: ${data.attr.color};`:''}
-        {data.attr.size?`font-size: ${data.attr.size};`:''}
-    ">
-        {data.text}
-</a>
-{:else}
-    <span class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
-        margin: {data.attr.margin ?? 0};
-        {data.attr.color?`color: ${data.attr.color};`:''}
-        {data.attr.size?`font-size: ${data.attr.size};`:''}
-    ">
-        {data.text}
-    </span>
-{/if}
+<svelte:element this={data.attr.url?'a':'p'} class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} target="_{data.attr.target??'blank'}" href={data.attr.url} style="
+    margin: {data.attr.margin ?? 0};
+    {data.attr.color?`color: ${data.attr.color};`:''}
+    {data.attr.size?`font-size: ${data.attr.size};`:''}
+">
+    {data.text}
+</svelte:element>
 <style lang="scss">
     .text{
         word-wrap: break-word;

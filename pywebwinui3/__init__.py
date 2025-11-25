@@ -1,7 +1,7 @@
 from .core import *
 from .event import *
 
-__version__ = '1.0.0-beta.34'
+__version__ = '1.0.0-beta.35'
 
 class Notice:
 	Accent = 0

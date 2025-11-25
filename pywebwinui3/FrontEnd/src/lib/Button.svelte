@@ -5,7 +5,7 @@
         if(data.attr.type=="toggle"){
             window.setValue(data.attr.value, !$values[data.attr.value])
         }else{
-            if(data.attr.url) window.open(data.attr.url,"_blank")
+            if(data.attr.type=="link"&&data.attr.url) window.open(data.attr.url,`_${data.attr.target??'blank'}`)
             window.setValue(data.attr.value, true)
         }
     }
