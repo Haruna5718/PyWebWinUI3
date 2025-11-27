@@ -4,7 +4,8 @@
     export let data: { [key: string]: any };
 </script>
 {#if String(data.attr.disabled??"")!="true"}
-    {#each data.child.find((d)=>$values[data.attr.value]==d.attr.value)?.child ?? [] as val}
+{@const condition = (data.attr.raw??$values[data.attr.value])}
+    {#each (data.child.find((d)=>condition==d.attr.value) ?? data.child.find((d)=>!d.attr.value))?.child ?? [] as val}
         <Component rawData={val}/>
     {/each}
 {/if}

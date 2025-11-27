@@ -4,6 +4,7 @@
 </script>
 <span class="main {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
     width: {data.attr.width ?? '160px'};
+    margin: {data.attr.margin ?? 0};
 ">
     <span />
     <div style="width: {$values[data.attr.value]??0}%"/>

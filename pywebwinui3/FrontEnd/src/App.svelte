@@ -101,13 +101,13 @@
 		{#if $values["system.settings"]}
 			{@const path = $values["system.settings"]["attr"]?.["path"] ?? "settings"}
 			{@const icon = $values["system.settings"]["attr"]?.["icon"] ?? ""}
-			{@const badge = $values["system.settings"]["attr"]?.["badge"]}
+			{@const state = $values["system.settings"]["attr"]?.["state"]}
 			<button class:settingButton={icon==""} class:Select={hash==path} on:click={()=>location.hash=path}>
 				<span class="icon">{icon}</span>
 				<span>{$values["system.settings"]["attr"]?.["name"] ?? "Settings"}</span>
-				{#if badge}
-					<span class="badge">{format(badge)??""}</span>
-				{/if}
+				{#if format(state??"")}
+						<span class="badge l{format(state??"")}">{format($values["system.settings"]["attr"]?.["badge"]??"")??""}</span>
+					{/if}
 			</button>
 		{/if}
 	</nav>
@@ -365,13 +365,17 @@
 					background-color: var(--SystemFillColorCriticalBrush);
 				}
 				&.l4{
-					background-color: var(--TextFillColorTertiaryBrush);
+					background-color: var(--SystemFillColorSolidNeutral);
 				}
 			}
 			@container (max-width: 50px) {
 				.badge{
-					top: 4px;
-					right: 4px;
+					top: 6px;
+					right: 6px;
+					font-size: 0;
+					line-height: 0;
+					min-width: 10px;
+					min-height: 10px;
 				}
 			}
 			&::before{
