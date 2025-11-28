@@ -14,7 +14,7 @@
     {/if}
     <input id="radio.{data.attr.group}.{data.attr.value}" type="radio"
         checked={$values[data.attr.group]==data.attr.value}
-        on:input={()=>window.setValue(data.attr.group, data.attr.value)}
+        on:input={()=>window.syncValue(data.attr.group, data.attr.value)}
     />
 </span>
 <style lang="scss">

@@ -9,6 +9,6 @@ declare global {
         [key: string]: (...args: any[]) => any;
       };
     };
-    setValue: (target: string, value: any, sync?: boolean) => void;
+    syncValue: (target: string, value: any, sync?: boolean) => void;
   }
 }

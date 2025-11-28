@@ -21,7 +21,7 @@
     <input id="check.{data.attr.value}" type="checkbox"
         bind:checked={checked}
         bind:indeterminate={indeterminate}
-        on:input|preventDefault={()=>window.setValue(data.attr.value, (value+1)%(data.attr.type=="three"?3:2))}
+        on:input|preventDefault={()=>window.syncValue(data.attr.value, (value+1)%(data.attr.type=="three"?3:2))}
     />
 </span>
 <style lang="scss">

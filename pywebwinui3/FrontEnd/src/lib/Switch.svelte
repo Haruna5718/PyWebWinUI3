@@ -20,7 +20,7 @@
             {data.attr.off??'OFF'}
         </label>
     </span>
-    <input id="switch.{data.attr.value}" type="checkbox" checked={$values[data.attr.value]} on:input={()=>{window.setValue(data.attr.value, !$values[data.attr.value])}}/>
+    <input id="switch.{data.attr.value}" type="checkbox" checked={$values[data.attr.value]} on:input={()=>{window.syncValue(data.attr.value, !$values[data.attr.value])}}/>
 </span>
 <style lang="scss">
     .main{

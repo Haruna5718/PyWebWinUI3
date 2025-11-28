@@ -5,13 +5,9 @@ from typing import Any, Callable
 
 logger = logging.getLogger('pywebwinui3.eventmanager')
 
-class EventContainer:
-	pass
-
 class Event:
 	def __init__(self) -> None:
 		self.items: list[Callable[..., Any]] = []
-		self.event = threading.Event()
 
 	def set(self, *args: Any, **kwargs: Any):
 		def execute():
@@ -22,17 +18,6 @@ class Event:
 					logger.error(e)
 
 		threading.Thread(target=execute,daemon=True).start()
-
-		self.event.set()
-
-	def is_set(self):
-		return self.event.is_set()
-
-	def wait(self, timeout: float | None = None):
-		return self.event.wait(timeout)
-
-	def clear(self) -> None:
-		return self.event.clear()
 
 	def __add__(self, item: Callable[..., Any]):
 		self.items.append(item)
@@ -56,35 +41,34 @@ class Event:
 class PathEvent:
 	def __init__(self) -> None:
 		self.items: dict[str,Event] = {}
-		self.event = threading.Event()
 
 	def set(self, target:str, *args: Any, **kwargs: Any):
 		def execute():
 			for key,event in self.items.items():
 				if fnmatch.fnmatch(target, key):
 					try:
-						event.set(*args, **kwargs)
+						event.set(target, *args, **kwargs)
 					except Exception as e:
 						logger.error(e)
 
 		threading.Thread(target=execute, daemon=True).start()
 
-		self.event.set()
-
-	def is_set(self):
-		return self.event.is_set()
-
-	def wait(self, timeout: float | None = None):
-		return self.event.wait(timeout)
-
-	def clear(self):
-		return self.event.clear()
-
-	def append(self, key, item: Callable[..., Any]):
-		self.items.setdefault(key, Event()).__iadd__(item)
+	def __add__(self, item: list):
+		self.items.setdefault(item[0], Event()).__iadd__(item[1])
 		return self
 
-	def remove(self, key, item: Callable[..., Any]):
-		self.items.setdefault(key, Event()).__isub__(item)
-		event -= item
+	def __sub__(self, item: list):
+		self.items.setdefault(item[0], Event()).__isub__(item[1])
+		event -= item[1]
 		return self
+
+	def __iadd__(self, item: list):
+		self.items.setdefault(item[0], Event()).__iadd__(item[1])
+		return self
+
+	def __isub__(self, item: list):
+		self.items.setdefault(item[0], Event()).__isub__(item[1])
+		return self
+
+	def __len__(self) -> int:
+		return len(self.items)

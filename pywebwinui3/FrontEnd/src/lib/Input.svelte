@@ -12,7 +12,7 @@
     <input
         type={data.attr.type=="password"?(ispasswordShow?"text":"password"):data.attr.type}
         placeholder={data.text}
-        on:input={(e)=>{window.setValue(data.attr.value, data.attr.type=="number"?Number(e.currentTarget.value):e.currentTarget.value)}}
+        on:input={(e)=>{window.syncValue(data.attr.value, data.attr.type=="number"?Number(e.currentTarget.value):e.currentTarget.value)}}
         min={data.attr.min}
         max={data.attr.max}
         value={$values[data.attr.value]}
@@ -20,8 +20,8 @@
     />
     {#if data.attr.type=="number"}
         <span class="buttons" bind:clientWidth={padding}>
-            <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
-            <button on:click={()=>window.setValue(data.attr.value, Number($values[data.attr.value])-1)}></button>
+            <button on:click={()=>window.syncValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
+            <button on:click={()=>window.syncValue(data.attr.value, Number($values[data.attr.value])-1)}></button>
         </span>
     {/if}
     {#if data.attr.type=="password"}

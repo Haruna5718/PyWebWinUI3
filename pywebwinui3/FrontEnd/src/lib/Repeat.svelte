@@ -1,6 +1,5 @@
 <script lang="ts">
     import Component from "./Component.svelte";
-    import { values } from '../App.svelte';
     export let data: { [key: string]: any };
     const formatIndex = (text,index) => {
         return text.replace(/(?<!\\){i}/g, () => index).replace(/\\({i})/g, "$1");
@@ -29,17 +28,9 @@
     };
 </script>
 {#if String(data.attr.disabled??"")!="true"}
-    {#if data.attr.data && ($values[data.attr.data]??[]).length}
-        {#each $values[data.attr.data]??[] as indexValue}
-            {#each data.child as val}
-                <Component rawData={formatVlaueAll(val,indexValue)}/>
-            {/each}
+    {#each new Array(Number(data.attr.data)||0) as _,index}
+        {#each data.child as val}
+            <Component rawData={formatIndexAll(val,index)}/>
         {/each}
-    {:else}
-        {#each new Array(Number($values[data.attr.value])||0) as _,index}
-            {#each data.child as val}
-                <Component rawData={formatIndexAll(val,index)}/>
-            {/each}
-        {/each}
-    {/if}
+    {/each}
 {/if}

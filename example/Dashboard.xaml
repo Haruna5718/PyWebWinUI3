@@ -1,4 +1,4 @@
-<Page path="dashboard" icon="" name="Dashboard">
+<Page path="" icon="" name="Dashboard">
     <Space />
     <Horizontal>
         <Space />

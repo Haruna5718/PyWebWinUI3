@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 </script>
 <span class="main {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
@@ -8,7 +7,7 @@
     margin: {data.attr.margin ?? 0};
 ">
     <span />
-    <div style="width: {$values[data.attr.value]??0}%"/>
+    <div style="width: {data.attr.data??0}%"/>
 </span>
 <style lang="scss">
     .main{

@@ -3,37 +3,57 @@
 	import './lib/ThemeResources.scss';
 
 	export const values = writable({
-		"system.goBack": true,
-		"system.pinTop": true,
-		"system.title": null,
-		"system.icon": null,
-		"system.theme": "system",
-		"system.color": ["#fff","#fff","#fff","#888","#000","#000","#000"],
-		"system.isOnTop": false,
-		"system.pages": null,
-		"system.settings": null,
-		"system.nofication": []
+		"system_goBack": true,
+		"system_pinTop": true,
+		"system_title": null,
+		"system_icon": null,
+		"system_theme": "system",
+		"system_accent": ["#fff","#fff","#fff","#888","#000","#000","#000"],
+		"system_isOnTop": false,
+		"system_pages": null,
+		"system_settings": null,
+		"system_nofication": []
 	});
 
 	export const format = (text) => {
-		const v = get(values);
-		let t = text.match(/^(?<!\\)\{([^}]+)\}$/)
-		if(t) return v[t[1]] ?? text
-        return text.replace(/(?<!\\){(.*?)}/g, (m, k) => v[k] ?? m).replace(/\\({.*?})/g, "$1");
-    };
+		let v = get(values);
+
+		const t = text.match(/^(?<!\\)\{([^}]+)\}$/);
+		if(t) {
+			if(v[t[1]]){
+				return v[t[1]]
+			}
+			try {
+				return Function('v', `with(v){ return ${t[1]} }`)(v);
+			} catch(e) {
+				return text;
+			}
+		}
+		
+		return text.replace(/(?<!\\){(.*?)}/g, (m, d) => {
+			if(v[d[1]]){
+				return v[d[1]]
+			}
+			try {
+				return Function('v', `with(v){ return ${d} }`)(v);
+			} catch(e) {
+				return m;
+			}
+		}).replace(/\\({.*?})/g, "$1");
+	};
 </script>
 <script lang="ts">
 	import Component from "./lib/Component.svelte";
 
 	let isNavOpen = true;
 
-	window.setValue = (target:string, value:any, sync=true) => {
+	window.syncValue = (target:string, value:any, sync=true) => {
 		if(!target) return;
 		values.update(dict=>{
 			return { ...dict, [target]: value };
 		});
 		if(target.endsWith("_Temp")) return;
-		if(sync) window.pywebview.api.setValue(target, value, false, true)
+		if(sync) window.pywebview.api.syncValue(target, value)
 	}
 	
 	let hash = location.hash
@@ -47,7 +67,7 @@
 	}
 	hashChange();
 	(async () => {
-		while (!window.hasOwnProperty("pywebview")) await new Promise(resolve => setTimeout(resolve, 100));
+		while (!window?.pywebview?.api?.hasOwnProperty("init")) await new Promise(resolve => setTimeout(resolve, 10));
 		let appConfig = await window.pywebview.api.init();
 		values.update(dict=>{
 			return { ...dict, ...appConfig };
@@ -55,38 +75,38 @@
 	})();
 </script>
 <svelte:window on:hashchange={hashChange}></svelte:window>
-<main class={$values['system.theme']} style="
+<main class={$values['system_theme']} style="
 	grid-template-columns: {isNavOpen ? 230 : 50}px 1fr;
-	{['Light3','Light2','Light1','','Dark1','Dark2','Dark3'].map((v,i)=>`--SystemAccentColor${v}:${$values['system.color'][i]};`).join('')}
-	--AccentFillColorLightSecondaryBrush: {$values['system.color'][1]}E6;
-	--AccentFillColorLightTertiaryBrush: {$values['system.color'][1]}CC;
-	--AccentFillColorDarkSecondaryBrush: {$values['system.color'][4]}E6;
-	--AccentFillColorDarkTertiaryBrush: {$values['system.color'][4]}CC;
+	{['Light3','Light2','Light1','','Dark1','Dark2','Dark3'].map((v,i)=>`--SystemAccentColor${v}:${$values['system_accent'][i]};`).join('')}
+	--AccentFillColorLightSecondaryBrush: {$values['system_accent'][1]}E6;
+	--AccentFillColorLightTertiaryBrush: {$values['system_accent'][1]}CC;
+	--AccentFillColorDarkSecondaryBrush: {$values['system_accent'][4]}E6;
+	--AccentFillColorDarkTertiaryBrush: {$values['system_accent'][4]}CC;
 ">
 	<header>
 		<div class="pywebview-drag-region"></div>
-		{#if $values["system.goBack"]}
+		{#if $values["system_goBack"]}
 			<button class="prevButton" style="width: 40px; height: 40px; margin: 0; color: var(--TextFillColorPrimaryBrush);" on:click={()=>history.back()} disabled={!RecentPages}>
 				<span class="icon"></span>
 			</button>
 		{/if}
 		<div class="title pywebview-drag-region">
-			<img src={$values["system.icon"]} alt="" style="opacity: {$values["system.icon"]?1:0};"/>
-			<p>{$values["system.title"]??""}</p>
+			<img src={$values["system_icon"]} alt="" style="opacity: {$values["system_icon"]?1:0};"/>
+			<p>{$values["system_title"]??""}</p>
 		</div>
-		{#if $values["system.pinTop"]}
-			<button on:click={()=>window.pywebview.api.setTop(!$values["system.isOnTop"])}>{$values["system.isOnTop"]?'':''}</button>
+		{#if $values["system_pinTop"]}
+			<button on:click={()=>window.pywebview.api.setTop(!$values["system_isOnTop"])}>{$values["system_isOnTop"]?'':''}</button>
 		{/if}
 		<button on:click={()=>window.pywebview.api.minimize()}></button>
 		<button on:click={()=>window.pywebview.api.destroy()}></button>
 	</header>
-	<nav style="grid-template-rows: 40px 1fr {$values['system.settings'] ? '40px': ''};">
+	<nav style="grid-template-rows: 40px 1fr {$values['system_settings'] ? '40px': ''};">
 		<button class="menuButton" style="width: 40px" on:click={()=>isNavOpen=!isNavOpen}>
 			<span class="icon"></span>
 		</button>
 		<section>
-			{#each Object.keys($values["system.pages"] ?? {}).sort() as key}
-				{@const val = $values["system.pages"][key]}
+			{#each Object.keys($values["system_pages"] ?? {}).sort() as key}
+				{@const val = $values["system_pages"][key]}
 				<button class:settingButton={val["attr"]?.["icon"]==""} class:Select={hash==key} on:click={()=>location.hash=key}>
 					<span class="icon">{val["attr"]?.["icon"] ?? ""}</span>
 					<span>{val["attr"]?.["name"] ?? key}</span>
@@ -96,25 +116,25 @@
 				</button>
 			{/each}
 		</section>
-		{#if $values["system.settings"]}
-			{@const path = $values["system.settings"]["attr"]?.["path"] ?? "settings"}
-			{@const icon = $values["system.settings"]["attr"]?.["icon"] ?? ""}
-			{@const state = $values["system.settings"]["attr"]?.["state"]}
+		{#if $values["system_settings"]}
+			{@const path = $values["system_settings"]["attr"]?.["path"] ?? "settings"}
+			{@const icon = $values["system_settings"]["attr"]?.["icon"] ?? ""}
+			{@const state = $values["system_settings"]["attr"]?.["state"]}
 			<button class:settingButton={icon==""} class:Select={hash==path} on:click={()=>location.hash=path}>
 				<span class="icon">{icon}</span>
-				<span>{$values["system.settings"]["attr"]?.["name"] ?? "Settings"}</span>
+				<span>{$values["system_settings"]["attr"]?.["name"] ?? "Settings"}</span>
 				{#if format(state??"")}
-						<span class="badge l{format(state??"")}">{format($values["system.settings"]["attr"]?.["badge"]??"")??""}</span>
+						<span class="badge l{format(state??"")}">{format($values["system_settings"]["attr"]?.["badge"]??"")??""}</span>
 					{/if}
 			</button>
 		{/if}
 	</nav>
 	{#key hash}
-		{#if $values["system.settings"]?.["attr"]?.["path"]==hash}
-			<Component rawData={$values["system.settings"]}/>
-		{:else if $values["system.pages"]?.[hash]}
-			<Component rawData={$values["system.pages"][hash]}/>
-		{:else if $values["system.pages"]==null}
+		{#if $values["system_settings"]?.["attr"]?.["path"]==hash}
+			<Component rawData={$values["system_settings"]}/>
+		{:else if $values["system_pages"]?.[hash]}
+			<Component rawData={$values["system_pages"][hash]}/>
+		{:else if $values["system_pages"]==null}
 			<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
 				<p style="color: var(--TextFillColorDisabledBrush)">Initializing...</p>
 			</div>
@@ -126,7 +146,7 @@
 		{/if}
 	{/key}
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">
-		{#each $values["system.nofication"] as [level,title,description,item], ind}
+		{#each $values["system_nofication"] as [level,title,description,item], ind}
 			<div class="InfoBar l{level}">
 				<span class="icon">{["","","",""][level]}</span>
 				<span class="content">
@@ -138,7 +158,7 @@
 						</span>
 					{/if}
 				</span>
-				<button class="close" on:click={()=>window.setValue("system.nofication",$values["system.nofication"].filter((_, i)=>i!=ind))}></button>
+				<button class="close" on:click={()=>window.syncValue("system_nofication",$values["system_nofication"].filter((_, i)=>i!=ind))}></button>
 			</div>
 		{/each}
 	</div>

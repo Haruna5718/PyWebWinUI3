@@ -2,9 +2,9 @@
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 
-    if ($values[data.attr.optionValue]==data.attr.value) window.setValue(`${data.attr.optionValue}._Temp`, data.text);
+    if ($values[data.attr.optionValue]==data.attr.value) window.syncValue(`${data.attr.optionValue}._Temp`, data.text);
 </script>
-<button class:select={$values[data.attr.optionValue]==data.attr.value} on:click={()=>{window.setValue(data.attr.optionValue, data.attr.value);window.setValue(`${data.attr.optionValue}._Temp`, data.text)}}>
+<button class:select={$values[data.attr.optionValue]==data.attr.value} on:click={()=>{window.syncValue(data.attr.optionValue, data.attr.value);window.syncValue(`${data.attr.optionValue}._Temp`, data.text)}}>
     {data.text}
 </button>
 <style lang="scss">

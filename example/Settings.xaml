@@ -3,7 +3,7 @@
         <Horizontal>
             <Text>App theme</Text>
             <Space />
-            <Select value="system.theme">
+            <Select value="system_theme">
                 <Option value="dark">Dark</Option>
                 <Option value="light">Light</Option>
                 <Option value="system">Use system setting</Option>

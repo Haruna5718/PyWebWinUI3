@@ -1,78 +1,88 @@
 import sys
 from pathlib import Path
+import logging
 
 try:
-    from ..pywebwinui3 import MainWindow, loadPage, Notice
+    from ..pywebwinui3 import MainWindow, Notice
 except ImportError:
     sys.path.append(str(Path(__file__).parent.parent))
-    from pywebwinui3 import MainWindow, loadPage, Notice
+    from pywebwinui3 import MainWindow, Notice
 
 if __name__ == "__main__":
-    app = MainWindow("PyWebWinUI3", "http://localhost:3000" if "server" in sys.argv else None)
+    pywebviewLogger = logging.getLogger("pywebview")
+    [pywebviewLogger.removeHandler(i) for i in pywebviewLogger.handlers[:]]
+    pywebviewLogger.setLevel(logging.NOTSET)
+    pywebviewLogger.propagate = True
 
-    app.addSettings(loadPage("Settings.xaml"))
-    app.addPage(loadPage("Dashboard.xaml"))
-    app.addPage(loadPage("Test.xaml"))
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(levelname)-8s | %(asctime)s | %(name)-30s | %(message)s",
+        datefmt="%H:%M:%S"
+    )
 
-    app.setValue("system.icon", "./favicon.ico")
+    app = MainWindow("PyWebWinUI3")
 
-    app.setValue("test.disabled", False)
+    app.addSettings("Settings.xaml")
+    app.addPage("Dashboard.xaml")
+    app.addPage("test.xaml")
 
-    app.setValue("test.textType", "default")
-    app.setValue("test.textContent", "This is Text With URL")
-    app.setValue("test.textUrl", "https://haruna5718.dev")
+    app.values["test_disabled"] = False
 
-    app.setValue("test.inputType", "text")
-    app.setValue("test.InputText", "Input")
-    app.setValue("test.input", "This is Input")
+    app.values["test_textType"] = "default"
+    app.values["test_textContent"] = "This is Text With URL"
+    app.values["test_textUrl"] = "https://haruna5718.dev"
 
-    app.setValue("test.buttonType", "click")
-    app.setValue("test.buttonUrl", "https://haruna5718.dev")
-    app.setValue("test.button", False)
+    app.values["test_inputType"] = "text"
+    app.values["test_InputText"] = "Input"
+    app.values["test_input"] = "This is Input"
 
-    app.setValue("test.selectText", "Select")
-    app.setValue("test.select", "option1")
+    app.values["test_buttonType"] = "click"
+    app.values["test_buttonUrl"] = "https://haruna5718.dev"
+    app.values["test_button"] = False
 
-    app.setValue("test.sliderType", "horizontal")
-    app.setValue("test.slider", 20)
+    app.values["test_selectText"] = "Select"
+    app.values["test_select"] = "option1"
 
-    app.setValue("test.progress", 20)
-    app.setValue("test.progressType", "progress")
+    app.values["test_sliderType"] = "horizontal"
+    app.values["test_slider"] = 20
 
-    app.setValue("test.switchAligin", "right")
-    app.setValue("test.switch", False)
+    app.values["test_progress"] = 20
+    app.values["test_progressType"] = "progress"
 
-    app.setValue("test.checkType", "two")
-    app.setValue("test.checkAligin", "right")
-    app.setValue("test.checkd", 0)
+    app.values["test_switchAlign"] = "right"
+    app.values["test_switch"] = False
 
-    app.setValue("test.radioAligin", "right")
-    app.setValue("test.radio", "option1")
+    app.values["test_checkType"] = "two"
+    app.values["test_checkAlign"] = "right"
+    app.values["test_checkd"] = 0
 
-    app.setValue("test.image", "https://crac.kro.kr/Haruna.png")
+    app.values["test_radioAlign"] = "right"
+    app.values["test_radio"] = "option1"
 
-    app.setValue("test.webview", "https://crac.kro.kr")
+    app.values["test_image"] = "https://crac.kro.kr/Haruna.png"
 
-    app.setValue("test.if", True)
+    app.values["test_webview"] = "https://crac.kro.kr"
 
-    app.setValue("test.repeat", 3)
+    app.values["test_if"] = True
 
-    app.setValue("test.state", "")
-    app.setValue("test.badge", 1)
+    app.values["test_repeat"] = 3
 
-    app.setValue("test.noticeType", Notice.Information)
-    app.setValue("test.noticeTitle", "Title")
-    app.setValue("test.noticeDescription", "Description")
+    app.values["test_state"] = ""
+    app.values["test_badge"] = 1
 
-    @app.onValueChange("test.noticeSample")
+    app.values["test_noticeType"] = Notice.Information
+    app.values["test_noticeTitle"] = "Title"
+    app.values["test_noticeDescription"] = "Description"
+
+    @app.onValueChange("test_noticeSample")
     def notiveSample(*_):
         app.notice(Notice.Information,"Title","This is sample information notice")
         app.notice(Notice.Success,"Title","This is sample success notice")
         app.notice(Notice.Warning,"Title","This is sample warning notice")
         app.notice(Notice.Error,"Title","This is sample error notice")
 
-    @app.onValueChange("test.noticeCreate")
+    @app.onValueChange("test_noticeCreate")
     def notiveCreate(*_):
-        app.notice(app.values["test.noticeType"],app.values["test.noticeTitle"],app.values["test.noticeDescription"])
+        app.notice(app.values["test_noticeType"],app.values["test_noticeTitle"],app.values["test_noticeDescription"])
 
-    app.start("dashboard", "debug" in sys.argv)
+    app.start("debug" in sys.argv)
