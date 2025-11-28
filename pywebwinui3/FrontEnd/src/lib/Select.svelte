@@ -18,6 +18,7 @@
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
 <span class="container" class:disabled={String(data.attr.disabled??"")=="true"} style="
+    margin: {data.attr.margin ?? 0};
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">

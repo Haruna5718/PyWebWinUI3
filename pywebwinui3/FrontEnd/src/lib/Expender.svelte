@@ -36,11 +36,13 @@
     .main{
         display: flex;
         align-self: stretch;
+        align-items: center;
         flex-direction: column;
-
+        
         gap: 0;
-
+        
         button{
+            align-items: inherit;
             display: flex;
             flex-grow: 1;
             align-self: stretch;
@@ -83,7 +85,6 @@
         }
         .content{
             display: flex;
-            align-items: center;
             align-self: stretch;
             flex-direction: column;
             border: 1px solid var(--CardStrokeColorDefaultSolidBrush);

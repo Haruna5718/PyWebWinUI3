@@ -5,6 +5,7 @@
     let padding
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
+    margin: {data.attr.margin ?? 0};
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">

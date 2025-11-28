@@ -3,6 +3,7 @@
     export let data: { [key: string]: any };
 </script>
 <span class="main {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
+    margin: {data.attr.margin ?? 0};
     width: {data.attr.width ?? '160px'};
     margin: {data.attr.margin ?? 0};
 ">

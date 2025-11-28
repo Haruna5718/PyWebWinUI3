@@ -1,10 +1,5 @@
 from setuptools import setup, find_packages
-
-def get_version():
-    with open("pywebwinui3/__init__.py", encoding="utf-8") as f:
-        for line in f:
-            if line.startswith("__version__"):
-                return line.split("=")[1].strip().strip('"').strip("'")
+from pywebwinui3 import __version__
 
 setup(
     name='PyWebWinUI3',
@@ -15,8 +10,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=['pywebview','pywin32'],
-    keywords=['PyWebWinUI3', 'Haruna5718', 'pywebview', 'winui3', 'pypi'],
-    version=get_version(),
+    keywords=['PyWebWinUI3', 'pywebwinui3', 'Haruna5718', 'pywebview', 'winui3', 'pypi'],
+    version=__version__,
     license='Apache 2.0',
     author='Haruna5718',
     author_email='devharuna5718@gmail.com',

@@ -53,8 +53,6 @@
 			return { ...dict, ...appConfig };
 		});
 	})();
-	let currentTheme
-	$:currentTheme = [0,1,$values['system.theme']][Number($values['settings.theme'])]
 </script>
 <svelte:window on:hashchange={hashChange}></svelte:window>
 <main class={$values['system.theme']} style="
@@ -128,12 +126,17 @@
 		{/if}
 	{/key}
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">
-		{#each $values["system.nofication"] as [level,title,description], ind}
+		{#each $values["system.nofication"] as [level,title,description,item], ind}
 			<div class="InfoBar l{level}">
 				<span class="icon">{["","","",""][level]}</span>
 				<span class="content">
 					<span class="title">{title}</span>
 					<span class="description">{description}</span>
+					{#if item}
+						<span class="item">
+							<Component rawData={item}/>
+						</span>
+					{/if}
 				</span>
 				<button class="close" on:click={()=>window.setValue("system.nofication",$values["system.nofication"].filter((_, i)=>i!=ind))}></button>
 			</div>
@@ -201,12 +204,28 @@
 				background-color: var(--SystemFillColorCriticalBrush);
 			}
 			.content{
-				padding: 6px 0px;
+				display: flex;
+				gap: 0;
+				flex-wrap: wrap;
+				min-height: 34px;
+				.item{
+					display: flex;
+					align-self: center;
+				}
+				.title{
+					display: flex;
+					margin: 6px 8px 0 0;
+					line-height: 20px;
+				}
 				.description{
+					display: flex;
+					align-self: center;
+					flex-grow: 1;
 					font-size: 14px;
 					font-variation-settings: 'wght' 400;
 					word-wrap: break-word;
 					overflow-wrap: anywhere;
+					margin: 4px 8px 4px 0;
 				}
 			}
 			.close{

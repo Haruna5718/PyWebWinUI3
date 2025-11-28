@@ -11,8 +11,9 @@
     }
 </script>
 <button class="main" class:select={data.attr.type=="toggle"&&$values[data.attr.value]} disabled={String(data.attr.disabled??"")=="true"} on:click={click} style="
-    width: {data.attr.width ?? 'auto'};
-    height: {data.attr.height ?? 'auto'};
+    margin: {data.attr.margin ?? 0};
+    width: {data.attr.width ?? 'fit-content'};
+    height: {data.attr.height ?? 'fit-content'};
 ">
     {data.text}{data.attr.type=="link"?" ":""}
     <slot />

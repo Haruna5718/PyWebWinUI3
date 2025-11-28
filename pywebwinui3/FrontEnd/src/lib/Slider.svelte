@@ -11,7 +11,10 @@
     }
     let click = false;
 </script>
-<span class="container" style="{data.attr.type=='vertical'?'height':'width'}: {data.attr.width ?? '160px'};" bind:clientWidth={width} bind:clientHeight={height} class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"}>
+<span class="container" bind:clientWidth={width} bind:clientHeight={height} class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"} style="
+    margin: {data.attr.margin ?? 0};
+    {data.attr.type=='vertical'?'height':'width'}: {data.attr.width ?? '160px'};
+">
     <span class="main" style="width: {data.attr.type=='vertical'?height:width}px; right: {(data.attr.type=='vertical'?height-24:0)/2}px" bind:clientWidth={width}>
         <span style="width: calc({percent*100}% {percent>0.5?'-':'+'} {Math.abs(0.5-percent)*18}px);">
             {#if click}

@@ -2,6 +2,7 @@
     export let data: { [key: string]: any };
 </script>
 <img src="{data.attr.source}" alt="" class:disabled={String(data.attr.disabled??"")=="true"} style="
+    margin: {data.attr.margin ?? 0};
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
 ">

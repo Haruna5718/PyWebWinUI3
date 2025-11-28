@@ -2,7 +2,9 @@
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 </script>
-<span class:disabled={String(data.attr.disabled??"")=="true"}>
+<span class:disabled={String(data.attr.disabled??"")=="true"} style="
+    margin: {data.attr.margin ?? 0};
+">
     {#if data.text}
         <label for="radio.{data.attr.group}.{data.attr.value}" style="
             order: {data.attr.align=="left"?0:2};

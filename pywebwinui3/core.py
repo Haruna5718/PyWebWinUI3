@@ -58,6 +58,7 @@ class MainWindow:
 		self.events.setValue = PathEvent()
 		self.server = bottle.Bottle()
 		self.basePath = Path(inspect.currentframe().f_back.f_code.co_filename).parent.resolve()
+		self._preloadUrls = set()
 		self.values = {
 			"system.title": title,
 			"system.icon": None,
@@ -99,12 +100,14 @@ class MainWindow:
 			return func
 		return decorator
 
-	def notice(self, level:int, title:str, description:str):
-		self.setValue('system.nofication', [*self.values["system.nofication"],[level,title,description]])
+	def notice(self, level:int, title:str, description:str, item:dict=None):
+		self.setValue('system.nofication', [*self.values["system.nofication"],[level,title,description,item]])
 
 	def _setup(self):
 		threading.Thread(target=systemMessageListener, args=(self._systemMessageHandler,), daemon=True).start()
-
+		for _ in self._preloadUrls.copy():
+			threading.Thread(target=self.sourcePreload, args=(self._preloadUrls.pop(),), daemon=True).start()
+	
 	def init(self):
 		self.running = True
 		return {
@@ -135,11 +138,10 @@ class MainWindow:
 		path = re.sub(r"(?<!\\)\{(.*?)\}", lambda m: str(self.values.get(m.group(1), m.group(0))), path)
 		logger.debug(f"Source preloaded: {path}")
 		self.api._window.evaluate_js(f"fetch('{path}')")
-		pass
 
 	def _sourcePreload(self, node: dict):
-		if "source" in node["attr"]:
-			self.api._window.events._pywebviewready += lambda: self.sourcePreload(node['attr']['source'])
+		if url:=node['attr'].get('source',None):
+			self._preloadUrls.add(url)
 		[self._sourcePreload(i) for i in node["child"]]
 
 	def _addpage(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None,imagePreload=True):
