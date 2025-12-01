@@ -1,14 +1,14 @@
 <script lang="ts">
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
-    let min,max,step,value,percent,width,height;
-    $:{
-        min=Number(data.attr.min ?? 0)
-        max=Number(data.attr.max ?? 100)
-        step=Number(data.attr.step ?? 1)
-        value=Math.max(Math.min(Number($values[data.attr.value]??0),max),min)
-        percent=(1-((max-value)/(max-min)))
-    }
+    let width,height;
+    $: min = +data?.attr?.min || 0;
+    $: max = +data?.attr?.max || 100;
+    $: step = +data?.attr?.step || 1;
+
+    $: value = Math.min(Math.max(+$values?.[data?.attr?.value] || 0, min), max);
+
+    $: percent = (1 - ((max - value) / (max - min)));
     let click = false;
 </script>
 <span class="container" bind:clientWidth={width} bind:clientHeight={height} class:vertical={data.attr.type=="vertical"} class:disabled={String(data.attr.disabled??"")=="true"} style="

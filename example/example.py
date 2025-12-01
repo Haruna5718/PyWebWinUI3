@@ -3,10 +3,10 @@ from pathlib import Path
 import logging
 
 try:
-    from ..pywebwinui3 import MainWindow, Notice
+    from ..pywebwinui3 import MainWindow, Status
 except ImportError:
     sys.path.append(str(Path(__file__).parent.parent))
-    from pywebwinui3 import MainWindow, Notice
+    from pywebwinui3 import MainWindow, Status
 
 if __name__ == "__main__":
     pywebviewLogger = logging.getLogger("pywebview")
@@ -70,16 +70,16 @@ if __name__ == "__main__":
     app.values["test_state"] = ""
     app.values["test_badge"] = 1
 
-    app.values["test_noticeType"] = Notice.Information
+    app.values["test_noticeType"] = Status.Attention
     app.values["test_noticeTitle"] = "Title"
     app.values["test_noticeDescription"] = "Description"
 
     @app.onValueChange("test_noticeSample")
     def notiveSample(*_):
-        app.notice(Notice.Information,"Title","This is sample information notice")
-        app.notice(Notice.Success,"Title","This is sample success notice")
-        app.notice(Notice.Warning,"Title","This is sample warning notice")
-        app.notice(Notice.Error,"Title","This is sample error notice")
+        app.notice(Status.Attention,"Title","This is sample information notice")
+        app.notice(Status.Success,"Title","This is sample success notice")
+        app.notice(Status.Caution,"Title","This is sample warning notice")
+        app.notice(Status.Critical,"Title","This is sample error notice")
 
     @app.onValueChange("test_noticeCreate")
     def notiveCreate(*_):

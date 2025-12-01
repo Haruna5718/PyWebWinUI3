@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { values } from '../App.svelte';
     export let data: { [key: string]: any };
 </script>
 <span style="

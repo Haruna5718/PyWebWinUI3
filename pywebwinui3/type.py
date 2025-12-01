@@ -1,22 +1,6 @@
 import enum
 
-class Notice:
-	Accent = 0
-	Information = 0
-	Attention = 0
-	Green = 1
-	Success = 1
-	Online = 1
-	Yellow = 2
-	Warning = 2
-	Caution = 2
-	Red = 3
-	Error = 3
-	Critical = 3
-	Gray = 4
-	Offline = 4
-	
-class Status(enum.Enum):
+class Status(enum.IntEnum):
 	Attention = 0
 	Success = 1
 	Caution = 2

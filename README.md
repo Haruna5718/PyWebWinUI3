@@ -22,15 +22,15 @@ You can define your UI using XAML files and control the app with Python. See the
 ```python
 from pywebwinui3 import MainWindow, loadPage
 
-app = MainWindow("PyWebWinUI3", debug=True)
-app.addSettings(loadPage("Settings.xaml"))
-app.addPage(loadPage("Dashboard.xaml"))
-app.addPage(loadPage("Test.xaml"))
+app = MainWindow("PyWebWinUI3", "./app.ico")
+app.addSettings("Settings.xaml")
+app.addPage("Dashboard.xaml")
+app.addPage("Test.xaml")
 
 # Set values for UI bindings
-app.setValue("system.theme", "dark")
+app.values["system.theme"] = "dark"
 
-app.start("dashboard")
+app.start()
 ```
 
 ### XAML Example (Settings.xaml)

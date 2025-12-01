@@ -9,7 +9,7 @@
 		"system_icon": null,
 		"system_theme": "system",
 		"system_accent": ["#fff","#fff","#fff","#888","#000","#000","#000"],
-		"system_isOnTop": false,
+		"system_pin": false,
 		"system_pages": null,
 		"system_settings": null,
 		"system_nofication": []
@@ -86,7 +86,7 @@
 	<header>
 		<div class="pywebview-drag-region"></div>
 		{#if $values["system_goBack"]}
-			<button class="prevButton" style="width: 40px; height: 40px; margin: 0; color: var(--TextFillColorPrimaryBrush);" on:click={()=>history.back()} disabled={!RecentPages}>
+			<button class="prevButton" on:click={()=>history.back()} disabled={!RecentPages}>
 				<span class="icon"></span>
 			</button>
 		{/if}
@@ -95,7 +95,7 @@
 			<p>{$values["system_title"]??""}</p>
 		</div>
 		{#if $values["system_pinTop"]}
-			<button on:click={()=>window.pywebview.api.setTop(!$values["system_isOnTop"])}>{$values["system_isOnTop"]?'':''}</button>
+			<button on:click={()=>window.syncValue("system_pin",!$values["system_pin"])}>{$values["system_pin"]?'':''}</button>
 		{/if}
 		<button on:click={()=>window.pywebview.api.minimize()}></button>
 		<button on:click={()=>window.pywebview.api.destroy()}></button>
@@ -135,13 +135,13 @@
 		{:else if $values["system_pages"]?.[hash]}
 			<Component rawData={$values["system_pages"][hash]}/>
 		{:else if $values["system_pages"]==null}
-			<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
-				<p style="color: var(--TextFillColorDisabledBrush)">Initializing...</p>
+			<div class="pageMessage">
+				<p>Initializing...</p>
 			</div>
 		{:else}
-			<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+			<div class="pageMessage">
 				<h1>404 Not Found</h1>
-				<p style="color: var(--TextFillColorDisabledBrush)">The page '{hash}' does not exist.</p>
+				<p>The page '{hash}' does not exist.</p>
 			</div>
 		{/if}
 	{/key}
@@ -164,6 +164,16 @@
 	</div>
 </main>
 <style lang="scss">
+	.pageMessage{
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
+		p{
+			color: var(--TextFillColorDisabledBrush);
+		}
+	}
 	.nofication{
 		display: flex;
 		gap: 4px;
@@ -263,6 +273,11 @@
 		}
 	}
 	.prevButton{
+		width: 40px;
+		height: 40px;
+		margin: 0;
+		color: var(--TextFillColorPrimaryBrush);
+		
 		display: flex;
 		align-items: center;
 		justify-content: center;

@@ -1,18 +1,14 @@
 import xml.etree.ElementTree
-from typing import Callable
+from typing import Any, Callable
 import threading
 import win32con
 import win32gui
 import win32api
 import logging
-import pathlib
 
 from .event import PathEvent, Event
 
 logger = logging.getLogger('pywebwinui3.util')
-
-def absolutePath(path:str|pathlib.Path=None):
-    return str(pathlib.Path(path).resolve()) if path else None
 
 def xamlToJson(element: xml.etree.ElementTree.Element):
 	return {
@@ -22,7 +18,7 @@ def xamlToJson(element: xml.etree.ElementTree.Element):
 		"child":[xamlToJson(e) for e in element]
 	}
 
-def loadPage(filePath: str|pathlib.Path):
+def loadPage(filePath: str):
 	try:
 		return xamlToJson(xml.etree.ElementTree.parse(filePath).getroot())
 	except FileNotFoundError:
@@ -31,17 +27,37 @@ def loadPage(filePath: str|pathlib.Path):
 		return logger.error(f"Failed to load page {filePath}: {e}")
 
 class SyncDict(dict):
-    def __init__(self, init:dict={}, event:PathEvent=None, sync:Callable=None):
-        super().__init__(init)
+    def __init__(self, init:dict=None, event:PathEvent=None, sync:Callable=None):
+        super().__init__(init or {})
         self.event = event or PathEvent()
         self.sync = sync
 
-    def __setitem__(self, key, value, sync=True):
+    def _sync(self, key, before, after, sync):
         if sync and self.sync:
-            self.sync(key,value)
-        self.event.set(key,self.get(key,None),value)
-        super().__setitem__(key, value)
+            self.sync(key, after)
+        self.event.set(key, before, after)
 
+    def __setitem__(self, key:str, value:Any, sync=True):
+        before = self.get(key, None)
+        super().__setitem__(key, value)
+        self._sync(key, before, value, sync)
+
+    def set(self, key:str, value:Any, sync=True):
+        self.__setitem__(key, value, sync)
+        return value
+    
+    def append(self, key:str, value:Any, sync=True):
+        before = list(self.get(key,[]))
+        self.setdefault(key,[]).append(value)
+        self._sync(key, before, self.get(key), sync)
+        return self[key]
+    
+    def remove(self, key:str, value:Any, sync=True):
+        before = list(self.get(key,[]))
+        self.setdefault(key,[]).remove(value)
+        self._sync(key, before, self.get(key), sync)
+        return self[key]
+        
 class AccentColorWatcher:
     def __init__(self, event:Event=None):
         self.event = event or Event()

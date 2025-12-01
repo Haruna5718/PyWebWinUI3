@@ -1,12 +1,9 @@
 <script lang="ts">
     import { values } from '../App.svelte';
     export let data: { [key: string]: any };
-    let value,checked,indeterminate;
-    $:{
-        value = Number($values[data.attr.value]??0)
-        checked = value==1
-        indeterminate = value==2
-    }
+    $: value = +$values[data.attr.value] || 0
+    $: checked = value==1
+    $: indeterminate = value==2
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
     margin: {data.attr.margin ?? 0};

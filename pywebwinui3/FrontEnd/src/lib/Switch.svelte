@@ -32,7 +32,7 @@
             flex-direction: column;
             cursor: pointer;
             user-select: none;
-            height: 1.4em;
+            height: 1.2em;
             padding: 0px 5px;
             &:hover{
                 color: var(--TextFillColorSecondaryBrush);

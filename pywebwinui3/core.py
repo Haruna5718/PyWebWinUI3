@@ -6,17 +6,16 @@ import bottle
 import inspect
 import threading
 
-from .util import AccentColorWatcher, SyncDict, absolutePath, loadPage
+from .util import AccentColorWatcher, SyncDict, loadPage
 from .type import Status
 
 logger = logging.getLogger("pywebwinui3")
 
-	
 class MainWindow:
 	def __init__(self, title:str, icon:str=None):
 		self.server = bottle.Bottle()
 		self.accent = AccentColorWatcher()
-		self.api = WebviewAPI(self, title, self.server)
+		self.api = WebviewAPI(self, title)
 
 		self.values = SyncDict({
 			"system_title": title,
@@ -26,14 +25,15 @@ class MainWindow:
 			"system_pages": None,
 			"system_settings": None,
 			"system_nofication": [],
-			"system_isOnTop": self.api._window.on_top
+			"system_pin": self.api._window.on_top
 		})
 
 		self.events = self.api._window.events
 		self.events.accentColorChange = self.accent.event
 		self.events.valueChange = self.values.event
 
-		self.basePath = Path(inspect.currentframe().f_back.f_code.co_filename).parent.resolve()
+		self.rootPath = Path(inspect.currentframe().f_back.f_code.co_filename).parent.resolve()
+		self.packagePath = Path(__file__).parent.resolve()/"web"
 
 	def onValueChange(self, key):
 		def decorator(func):
@@ -69,7 +69,7 @@ class MainWindow:
 		return self.values
 
 	def syncValue(self, key, value):
-		self.values.__setitem__(key,value,False)
+		return self.values.set(key,value,False)
 
 	def addSettings(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None):
 		if pageFile and not pageData:
@@ -87,13 +87,13 @@ class MainWindow:
 		}
 	
 	def serverRouteRoot(self):
-		return bottle.static_file("index.html", root=absolutePath(Path(__file__).parent/("web")))
+		return bottle.static_file("index.html", root=self.packagePath)
 	
 	def serverRouteResource(self,filepath):
-		return bottle.static_file(filepath, root=absolutePath(Path(__file__).parent/("web/PYWEBWINUI3")))
+		return bottle.static_file(filepath, root=self.packagePath/"PYWEBWINUI3")
 
 	def serverRouteFile(self,filepath):
-			return bottle.static_file(filepath, root=str(self.basePath))
+		return bottle.static_file(filepath, root=self.rootPath)
 
 	def start(self, debug=False):
 		self.server.route('/',callback=self.serverRouteRoot)
@@ -101,13 +101,14 @@ class MainWindow:
 		self.server.route('/<filepath:path>',callback=self.serverRouteFile)
 		
 		self.accent.start()
+
 		webview.start(self._setup,debug=debug)
 
 class WebviewAPI:
-	def __init__(self, mainClass:MainWindow, title:str, server:bottle.Bottle):
+	def __init__(self, mainClass:MainWindow, title:str):
 		self._window = webview.create_window(
 			title,
-			server,
+			mainClass.server,
 			# "http://localhost:3000/",
 			js_api=self,
 			background_color="#202020",
@@ -127,6 +128,6 @@ class WebviewAPI:
 		self.init = mainClass.init
 		self.syncValue = mainClass.syncValue
 
-	def setTop(self, State:bool):
+	def pin(self, State:bool):
 		threading.Thread(target=lambda: setattr(self._window, "on_top", State), daemon=True).start()
-		return self.setValue('system.isOnTop', self._window.on_top)
+		return self.syncValue('system_pin', self._window.on_top)
