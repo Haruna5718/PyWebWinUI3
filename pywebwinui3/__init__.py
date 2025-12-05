@@ -1,6 +1,3 @@
-from .core import *
-from .event import *
-from .util import *
-from .type import *
+__all__ = ["core", "event", "util", "type"]
 
-__version__ = '1.0.0-beta.38'
+__version__ = '1.0.0-beta.39'

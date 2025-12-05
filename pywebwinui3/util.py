@@ -19,12 +19,7 @@ def xamlToJson(element: xml.etree.ElementTree.Element):
 	}
 
 def loadPage(filePath: str):
-	try:
-		return xamlToJson(xml.etree.ElementTree.parse(filePath).getroot())
-	except FileNotFoundError:
-		return logger.error(f"Failed to load page: {filePath} not found")
-	except xml.etree.ElementTree.ParseError as e:
-		return logger.error(f"Failed to load page {filePath}: {e}")
+	return xamlToJson(xml.etree.ElementTree.parse(filePath).getroot())
 
 class SyncDict(dict):
     def __init__(self, init:dict=None, event:PathEvent=None, sync:Callable=None):

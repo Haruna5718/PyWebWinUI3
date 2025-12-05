@@ -2,18 +2,19 @@
     import Component from "./Component.svelte";
     export let data: { [key: string]: any };
     let open=false
+    $: Header = data.child.find((d)=>"Header"==d.tag)
 </script>
 <div class="main" style="
     border-radius: {data.attr.round ?? '4px'};
 ">
     <button on:click={()=>{open=!open}} class:open={open} disabled={String(data.attr.disabled??"")=="true"}>
         <span class="header" style="
-            gap: {data.attr.gap ?? '4px'};
-            padding: {data.attr.padding ?? '16px'};
-            align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
+            gap: {Header?.attr?.gap ?? '4px'};
+            padding: {Header?.attr?.padding ?? '16px'};
+            align-items: {Header?.attr?.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
         ">
-            {#each data.child.find((d)=>"Header"==d.tag)?.child ?? [] as val}
-            <Component rawData={val}/>
+            {#each Header?.child ?? [] as val}
+                <Component rawData={val}/>
             {/each}
         </span>
         <span class="arrow"></span>
@@ -21,9 +22,9 @@
     {#if open}
         {#each data.child.filter((d)=>"Content"==d.tag) ?? [] as child}
             <div class="content" style="
-                gap: {data.attr.gap ?? '4px'};
-                padding: {data.attr.padding ?? '16px'};
-                align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
+                gap: {child.attr.gap ?? '4px'};
+                padding: {child.attr.padding ?? '16px'};
+                align-items: {child.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
             ">
                 {#each child.child ?? [] as val}
                     <Component rawData={val}/>

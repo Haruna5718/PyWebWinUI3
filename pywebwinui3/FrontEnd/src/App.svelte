@@ -95,7 +95,7 @@
 			<p>{$values["system_title"]??""}</p>
 		</div>
 		{#if $values["system_pinTop"]}
-			<button on:click={()=>window.syncValue("system_pin",!$values["system_pin"])}>{$values["system_pin"]?'':''}</button>
+			<button on:click={()=>window.pywebview.api.pin(!$values["system_pin"])}>{$values["system_pin"]?'':''}</button>
 		{/if}
 		<button on:click={()=>window.pywebview.api.minimize()}></button>
 		<button on:click={()=>window.pywebview.api.destroy()}></button>

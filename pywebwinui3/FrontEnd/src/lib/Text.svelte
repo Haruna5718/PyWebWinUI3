@@ -12,6 +12,7 @@
 <style lang="scss">
     .text{
         word-wrap: break-word;
+        white-space: pre-wrap;
 		overflow-wrap: anywhere;
         display: flex;
         font-size: 16px;

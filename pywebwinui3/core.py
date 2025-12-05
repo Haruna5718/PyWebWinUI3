@@ -67,6 +67,10 @@ class MainWindow:
 
 	def init(self):
 		return self.values
+	
+	def pin(self, state:bool):
+		threading.Thread(target=lambda: setattr(self.api._window, "on_top", state), daemon=True).start()
+		return self.values.set('system_pin',state)
 
 	def syncValue(self, key, value):
 		return self.values.set(key,value,False)
@@ -125,9 +129,6 @@ class WebviewAPI:
 		self.destroy = self._window.destroy
 		self.minimize = self._window.minimize
 
+		self.pin = mainClass.pin
 		self.init = mainClass.init
 		self.syncValue = mainClass.syncValue
-
-	def pin(self, State:bool):
-		threading.Thread(target=lambda: setattr(self._window, "on_top", State), daemon=True).start()
-		return self.syncValue('system_pin', self._window.on_top)

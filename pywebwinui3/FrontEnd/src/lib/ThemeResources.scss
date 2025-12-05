@@ -121,10 +121,11 @@ $dark: (
     TextFillColorTertiary: #FFFFFF87,
     TextFillColorDisabled: #FFFFFF5D,
     TextFillColorInverse: #000000E4,
-    TextFillColorInverse1: #000000E4,
 
     AccentTextFillColorDisabled: #FFFFFF5D,
+
     TextOnAccentFillColorSelectedText: #FFFFFF,
+
     TextOnAccentFillColorPrimary: #000000,
     TextOnAccentFillColorSecondary: #00000080,
     TextOnAccentFillColorDisabled: #FFFFFF87,
@@ -229,7 +230,6 @@ $dark: (
     AccentFillColorTertiaryBrush: var(--AccentFillColorLightTertiaryBrush),
 
     SystemFillColorAttentionBrush: var(--SystemAccentColorLight2),
-
 );
 
 *{
