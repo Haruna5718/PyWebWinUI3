@@ -1,1 +1,2 @@
 recursive-include pywebwinui3/web *
+include requirements.txt
