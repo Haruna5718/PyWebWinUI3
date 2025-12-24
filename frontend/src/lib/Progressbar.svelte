@@ -6,10 +6,18 @@
     width: {data.attr.width ?? '160px'};
     margin: {data.attr.margin ?? 0};
 ">
-    <span />
-    <div style="width: {data.attr.data??0}%"/>
+    <span> </span>
+    <div style="width: {data.attr.data??0}%"></div>
 </span>
 <style lang="scss">
+    @keyframes running {
+        0%{
+            transform: translateX(-100%);
+        }
+        100%{
+            transform: translateX(200%);
+        }
+    }
     .main{
         align-self: center;
         height: 4px;
@@ -38,14 +46,6 @@
             div{
                 width: 50% !important;
                 animation : running 1s infinite ease-in-out forwards;
-            }
-            @keyframes running {
-                0%{
-                    transform: translateX(-100%);
-                }
-                100%{
-                    transform: translateX(200%);
-                }
             }
         }
         &.success{

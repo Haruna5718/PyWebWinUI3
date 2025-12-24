@@ -3,7 +3,7 @@
     import Component from './Component.svelte';
     export let data: { [key: string]: any };
 
-    const formatOption = (targetData) => {
+    const formatOption = (targetData:any) => {
         let isChange = targetData.tag == "Option";
         return {
             tag: targetData.tag,
@@ -14,7 +14,7 @@
     };
 
     let open=false
-    let main
+    let main:HTMLButtonElement
 </script>
 <svelte:window on:click={(e)=>{if(!main?.contains(e.target))open=false}}></svelte:window>
 <span class="container" class:disabled={String(data.attr.disabled??"")=="true"} style="
@@ -41,6 +41,14 @@
     </div>
 </span>
 <style lang="scss">
+    @keyframes onAnim {
+        0%{
+            transform: translateY(0px);
+        }
+        100%{
+            transform: translateY(10px);
+        }
+    }
     .main{
         width: 100%;
         height: 100%;
@@ -81,13 +89,5 @@
         gap: 5px;
         width: max-content;
         box-shadow: 0 1px 1px 0 var(--SmokeFillColorDefaultBrush);
-        @keyframes onAnim {
-            0%{
-                transform: translateY(0px);
-            }
-            100%{
-                transform: translateY(10px);
-            }
-        }
     }
 </style>

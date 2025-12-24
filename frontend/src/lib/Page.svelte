@@ -10,6 +10,11 @@
     </div>
 </div>
 <style lang="scss">
+    @keyframes PageLoadAnim {
+        0%{
+            transform: translateY(50px);
+        }
+    }
     .page{
         display: flex;
         flex-direction: column;
@@ -43,10 +48,5 @@
             padding: 36px 32px 36px 36px;
             align-items: center;
         }
-    }
-	@keyframes PageLoadAnim {
-		0%{
-			transform: translateY(50px);
-		}
     }
 </style>

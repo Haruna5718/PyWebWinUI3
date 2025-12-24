@@ -5,7 +5,7 @@
     margin: {data.attr.margin ?? 0};
     width: {data.attr.width ?? 'auto'};
     height: {data.attr.height ?? 'auto'};
-"/>
+"></iframe>
 <style lang="scss">
     iframe{
         width: 100%;

@@ -1,29 +1,29 @@
 <script lang="ts">
     import Component from "./Component.svelte";
     export let data: { [key: string]: any };
-    const formatIndex = (text,index) => {
+    const formatIndex = (text:string, index:number) => {
         return text.replace(/(?<!\\){i}/g, () => index).replace(/\\({i})/g, "$1");
     };
 
-    const formatIndexAll = (targetData,index) => {
+    const formatIndexAll = (targetData:any, index:number) => {
         return {
             tag: targetData.tag,
             attr: Object.fromEntries(Object.entries(targetData.attr).map(([k, v]) => [k, formatIndex(v,index)])),
             text: formatIndex(targetData.text,index),
-            child: targetData.child.map((child) => formatIndexAll(child,index))
+            child: targetData.child.map((child:any) => formatIndexAll(child,index))
         };
     };
 
-    const formatVlaue = (text,value) => {
+    const formatVlaue = (text:string, value:any) => {
         return text.replace(/(?<!\\){(\d+)}/g, (m,k) => value[Number(k)]).replace(/\\({\d+})/g, "$1");
     };
 
-    const formatVlaueAll = (targetData,value) => {
+    const formatVlaueAll = (targetData:any, value:any) => {
         return {
             tag: targetData.tag,
             attr: Object.fromEntries(Object.entries(targetData.attr).map(([k, v]) => [k, formatVlaue(v,value)])),
             text: formatVlaue(targetData.text,value),
-            child: targetData.child.map((child) => formatVlaueAll(child,value))
+            child: targetData.child.map((child:any) => formatVlaueAll(child,value))
         };
     };
 </script>

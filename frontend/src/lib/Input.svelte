@@ -2,7 +2,7 @@
     import { values } from '../routes/+page.svelte';
     export let data: { [key: string]: any };
     let ispasswordShow = false
-    let padding
+    let padding:number
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
     margin: {data.attr.margin ?? 0};

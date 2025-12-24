@@ -2,7 +2,7 @@
     import Component from "./Component.svelte";
     export let data: { [key: string]: any };
     let open=false
-    $: Header = data.child.find((d)=>"Header"==d.tag)
+    $: Header = data.child.find((d:any)=>"Header"==d.tag)
 </script>
 <div class="main" style="
     border-radius: {data.attr.round ?? '4px'};
@@ -20,7 +20,7 @@
         <span class="arrow"></span>
     </button>
     {#if open}
-        {#each data.child.filter((d)=>"Content"==d.tag) ?? [] as child}
+        {#each data.child.filter((d:any)=>"Content"==d.tag) ?? [] as child}
             <div class="content" style="
                 gap: {child.attr.gap ?? '4px'};
                 padding: {child.attr.padding ?? '16px'};
