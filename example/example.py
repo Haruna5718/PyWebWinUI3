@@ -3,10 +3,10 @@ from pathlib import Path
 import logging
 
 try:
-    from ..pywebwinui3 import MainWindow, Status
+    from ..pywebwinui3.core import MainWindow, Status
 except ImportError:
     sys.path.append(str(Path(__file__).parent.parent))
-    from pywebwinui3 import MainWindow, Status
+    from pywebwinui3.core import MainWindow, Status
 
 if __name__ == "__main__":
     pywebviewLogger = logging.getLogger("pywebview")

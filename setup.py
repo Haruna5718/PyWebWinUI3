@@ -9,7 +9,7 @@ setup(
     long_description_content_type='text/markdown',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['pywebview','pywin32'],
+    install_requires=open("requirements.txt", encoding="utf-8").read().splitlines(),
     keywords=['PyWebWinUI3', 'pywebwinui3', 'Haruna5718', 'pywebview', 'winui3', 'pypi'],
     version=__version__,
     license='Apache 2.0',

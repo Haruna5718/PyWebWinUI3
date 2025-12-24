@@ -90,19 +90,15 @@ class MainWindow:
 			pageData["attr"]["path"]:pageData
 		}
 	
-	def serverRouteRoot(self):
-		return bottle.static_file("index.html", root=self.packagePath)
-	
-	def serverRouteResource(self,filepath):
-		return bottle.static_file(filepath, root=self.packagePath/"PYWEBWINUI3")
-
-	def serverRouteFile(self,filepath):
-		return bottle.static_file(filepath, root=self.rootPath)
+	def routeFile(self, filepath="index.html"):
+		if (self.packagePath/filepath).is_file():
+			return bottle.static_file(filepath, root=self.packagePath)
+		if (self.rootPath/filepath).is_file():
+			return bottle.static_file(filepath, root=self.rootPath)
 
 	def start(self, debug=False):
-		self.server.route('/',callback=self.serverRouteRoot)
-		self.server.route('/PYWEBWINUI3/<filepath:path>',callback=self.serverRouteResource)
-		self.server.route('/<filepath:path>',callback=self.serverRouteFile)
+		self.server.route('/',callback=self.routeFile)
+		self.server.route('/<filepath:path>',callback=self.routeFile)
 		
 		self.accent.start()
 
@@ -113,7 +109,7 @@ class WebviewAPI:
 		self._window = webview.create_window(
 			title,
 			mainClass.server,
-			# "http://localhost:3000/",
+			# "http://localhost:5173/",
 			js_api=self,
 			background_color="#202020",
 			frameless=True,
