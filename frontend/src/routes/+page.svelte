@@ -332,6 +332,7 @@
 		color: var(--TextFillColorPrimaryBrush);
 		width: 100vw;
 		height: 100vh;
+		transition: grid-template-columns 0.3s ease;
 	}
 	header{
 		user-select: none;
