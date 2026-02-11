@@ -16,7 +16,7 @@ import{c as b,a as s,f}from"../chunks/HFhCsEs0.js";import{F as c,G as g,a as m,H
 			box-sizing: border-box;
 			line-height: 1.2;
 			color: inherit;
-			transition: all 0.1s ease-out;
+			transition: all 0.2s ease;
 		}
 		::-webkit-scrollbar{
 			width: 4px;

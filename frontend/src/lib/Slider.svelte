@@ -56,7 +56,7 @@
             height: 4px;
             border-radius: 2px;
             span{
-                transition: all 0.1s ease-out, width 0s;
+                transition: all 0.2s ease, width 0s;
                 border-radius: 2px;
                 position: absolute;
                 inset: 0;
@@ -87,7 +87,7 @@
                 &::-webkit-slider-thumb {
                     cursor: pointer;
                     appearance: none;
-                    transition: all 0.1s ease-in-out;
+                    transition: all 0.2s ease-in-out;
                     border: 5px solid var(--ControlSolidFillColorDefaultBrush);
                     box-shadow: 0 1px 0 1px var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlSolidFillColorDefaultBrush);
                     background-color: var(--AccentFillColorDefaultBrush);

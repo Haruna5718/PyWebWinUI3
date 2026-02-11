@@ -61,7 +61,7 @@
 		border: 1px solid var(--ControlStrokeColorDefaultBrush);
         border-bottom: 1.5px solid var(--ControlStrongFillColorDefaultBrush);
         line-height: 1.3em;
-        transition: all 0.1s ease-out, padding 0s, border-bottom-width 0s;
+        transition: all 0.2s ease-out, padding 0s, border-bottom-width 0s;
         width: 100%;
         height: 100%;
 		&::-webkit-inner-spin-button,&::-webkit-outer-spin-button{

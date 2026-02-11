@@ -332,7 +332,6 @@
 		color: var(--TextFillColorPrimaryBrush);
 		width: 100vw;
 		height: 100vh;
-		transition: grid-template-columns 0.3s ease;
 	}
 	header{
 		user-select: none;
@@ -407,7 +406,7 @@
 				min-height: 14px;
 				border-radius: 8px;
 				text-align: center;
-				transition: all 0.1s ease-out, right 0s, top 0s;
+				transition: all 0.2s ease-out, right 0s, top 0s;
 				color: var(--TextOnAccentFillColorPrimaryBrush);
 				&.l0{
 					background-color: var(--SystemFillColorAttentionBrush);
