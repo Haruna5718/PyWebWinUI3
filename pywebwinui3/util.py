@@ -1,6 +1,7 @@
 import xml.etree.ElementTree
 from typing import Any, Callable
 import threading
+import winreg
 import win32con
 import win32gui
 import win32api
@@ -9,6 +10,18 @@ import logging
 from .event import PathEvent, Event
 
 logger = logging.getLogger('pywebwinui3.util')
+
+DEFAULT_ACCENT_PALETTE = [
+	"#99ebff",
+	"#00ccff",
+	"#0099ff",
+	"#0078d4",
+	"#005fb8",
+	"#004a92",
+	"#003966",
+	"#00264a",
+]
+DEFAULT_SYSTEM_THEME = "light"
 
 def xamlToJson(element: xml.etree.ElementTree.Element):
 	return {
@@ -22,63 +35,79 @@ def loadPage(filePath: str):
 	return xamlToJson(xml.etree.ElementTree.parse(filePath).getroot())
 
 class SyncDict(dict):
-    def __init__(self, init:dict=None, event:PathEvent=None, sync:Callable=None):
-        super().__init__(init or {})
-        self.event = event or PathEvent()
-        self.sync = sync
+	def __init__(self, init:dict=None, event:PathEvent=None, sync:Callable=None):
+		super().__init__(init or {})
+		self.event = event or PathEvent()
+		self.sync = sync
 
-    def _sync(self, key, before, after, sync):
-        if sync and self.sync:
-            self.sync(key, after)
-        self.event.set(key, before, after)
+	def _sync(self, key, before, after, sync):
+		if sync and self.sync:
+			self.sync(key, after)
+		self.event.set(key, before, after)
 
-    def __setitem__(self, key:str, value:Any, sync=True):
-        before = self.get(key, None)
-        super().__setitem__(key, value)
-        self._sync(key, before, value, sync)
+	def __setitem__(self, key:str, value:Any, sync=True):
+		before = self.get(key, None)
+		super().__setitem__(key, value)
+		self._sync(key, before, value, sync)
 
-    def set(self, key:str, value:Any, sync=True):
-        self.__setitem__(key, value, sync)
-        return value
-    
-    def append(self, key:str, value:Any, sync=True):
-        before = list(self.get(key,[]))
-        self.setdefault(key,[]).append(value)
-        self._sync(key, before, self.get(key), sync)
-        return self[key]
-    
-    def remove(self, key:str, value:Any, sync=True):
-        before = list(self.get(key,[]))
-        self.setdefault(key,[]).remove(value)
-        self._sync(key, before, self.get(key), sync)
-        return self[key]
-        
+	def set(self, key:str, value:Any, sync=True):
+		self.__setitem__(key, value, sync)
+		return value
+	
+	def append(self, key:str, value:Any, sync=True):
+		before = list(self.get(key,[]))
+		self.setdefault(key,[]).append(value)
+		self._sync(key, before, self.get(key), sync)
+		return self[key]
+	
+	def remove(self, key:str, value:Any, sync=True):
+		before = list(self.get(key,[]))
+		self.setdefault(key,[]).remove(value)
+		self._sync(key, before, self.get(key), sync)
+		return self[key]
+		
 class AccentColorWatcher:
-    def __init__(self, event:Event=None):
-        self.event = event or Event()
-        self.palette = self.getSystemAccentColor()
+	def __init__(self, event:Event=None):
+		self.event = event or Event()
+		self.theme_event = Event()
+		self.palette = self.getSystemAccentColor()
+		self.theme = self.getSystemTheme()
 
-    @staticmethod
-    def getSystemAccentColor():
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent") as key:
-            p, _ = winreg.QueryValueEx(key, "AccentPalette")
-        return [f"#{p[i]:02x}{p[i+1]:02x}{p[i+2]:02x}" for i in range(0,len(p),4)]
-    
-    def systemMessageListener(self):
-        wc = win32gui.WNDCLASS()
-        wc.lpszClassName = "SystemMessageListener"
-        wc.lpfnWndProc = self.systemMessageHandler
-        win32gui.CreateWindow(win32gui.RegisterClass(wc), wc.lpszClassName, 0, 0, 0, 0, 0, 0, 0, win32api.GetModuleHandle(None), None)
-        win32gui.PumpMessages()
+	@staticmethod
+	def getSystemAccentColor():
+		try:
+			with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent") as key:
+				p, _ = winreg.QueryValueEx(key, "AccentPalette")
+		except OSError:
+			return DEFAULT_ACCENT_PALETTE.copy()
+		return [f"#{p[i]:02x}{p[i+1]:02x}{p[i+2]:02x}" for i in range(0,len(p),4)]
 
-    def systemMessageHandler(self, hwnd, msg, wparam, lparam):
-        if msg == win32con.WM_SETTINGCHANGE:
-            if self.palette!=(color:=self.getSystemAccentColor()):
-                self.palette = color
-                self.event.set(self.palette)
-        return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
+	@staticmethod
+	def getSystemTheme():
+		try:
+			with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
+				t, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+		except OSError:
+			return DEFAULT_SYSTEM_THEME
+		return "light" if t else "dark"
+	
+	def systemMessageListener(self):
+		wc = win32gui.WNDCLASS()
+		wc.lpszClassName = "SystemMessageListener"
+		wc.lpfnWndProc = self.systemMessageHandler
+		win32gui.CreateWindow(win32gui.RegisterClass(wc), wc.lpszClassName, 0, 0, 0, 0, 0, 0, 0, win32api.GetModuleHandle(None), None)
+		win32gui.PumpMessages()
 
-    def start(self):
-        threading.Thread(target=self.systemMessageListener, daemon=True).start()
-        logger.debug("System message listener started")
+	def systemMessageHandler(self, hwnd, msg, wparam, lparam):
+		if msg == win32con.WM_SETTINGCHANGE:
+			if self.palette!=(color:=self.getSystemAccentColor()):
+				self.palette = color
+				self.event.set(self.palette)
+			if self.theme != (theme:=self.getSystemTheme()):
+				self.theme = theme
+				self.theme_event.set(self.theme)
+		return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
+
+	def start(self):
+		threading.Thread(target=self.systemMessageListener, daemon=True).start()
+		logger.debug("System message listener started")

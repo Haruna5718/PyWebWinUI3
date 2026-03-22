@@ -23,7 +23,7 @@
 			box-sizing: border-box;
 			line-height: 1.2;
 			color: inherit;
-			transition: all 0.2s ease;
+			transition: all 0.2s ease, color 0.1s ease, width 0s, height 0s;
 		}
 		::-webkit-scrollbar{
 			width: 4px;

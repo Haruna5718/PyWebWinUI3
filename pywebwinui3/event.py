@@ -1,20 +1,43 @@
-import logging
+from __future__ import annotations
+
+import atexit
 import fnmatch
-import threading
+import logging
+import os
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
-logger = logging.getLogger('pywebwinui3.eventmanager')
+logger = logging.getLogger("pywebwinui3.eventmanager")
+
+_EVENT_WORKERS = max(4, min(32, (os.cpu_count() or 1) * 4))
+_EVENT_EXECUTOR = ThreadPoolExecutor(
+	max_workers=_EVENT_WORKERS,
+	thread_name_prefix="pywebwinui3-event",
+)
+atexit.register(lambda: _EVENT_EXECUTOR.shutdown(wait=False))
+
+
+def _call_listener(func: Callable[..., Any], args: tuple[Any, ...]):
+	try:
+		func(*args)
+	except Exception:
+		logger.error(traceback.format_exc())
+
 
 class Event:
 	def __init__(self) -> None:
 		self.items: list[Callable[..., Any]] = []
 
 	def set(self, *args: Any):
-		for func in self.items[:]:
+		listeners = tuple(self.items)
+		if not listeners:
+			return
+
+		for func in listeners:
 			try:
-				threading.Thread(target=func, args=(*args,), daemon=True).start()
-			except:
+				_EVENT_EXECUTOR.submit(_call_listener, func, args)
+			except Exception:
 				logger.error(traceback.format_exc())
 
 	def __add__(self, item: Callable[..., Any]):
@@ -35,19 +58,24 @@ class Event:
 
 	def __len__(self) -> int:
 		return len(self.items)
-	
+
+
 class PathEvent:
 	def __init__(self) -> None:
-		self.items: dict[str,Event] = {}
+		self.items: dict[str, Event] = {}
 
-	def set(self, target:str, *args: Any):
-		events = self.items.items()
-		for key,event in events:
-			if fnmatch.fnmatch(target, key):
-				try:
-					threading.Thread(target=event.set, args=(target, *args), daemon=True).start()
-				except:
-					logger.error(traceback.format_exc())
+	def set(self, target: str, *args: Any):
+		if not self.items:
+			return
+
+		for key, event in tuple(self.items.items()):
+			if not fnmatch.fnmatch(target, key):
+				continue
+
+			try:
+				event.set(target, *args)
+			except Exception:
+				logger.error(traceback.format_exc())
 
 	def __add__(self, item: list):
 		self.items.setdefault(item[0], Event()).__iadd__(item[1])

@@ -1,13 +1,15 @@
 
 # PyWebWinUI3
 
-PyWebWinUI3 is a project that helps you easily build WinUI3-style desktop UIs in Python using [pywebview](https://pywebview.flowrl.com/).
+PyWebWinUI3 is a project that helps you easily build WinUI3-style desktop UIs in Python using PySide6, QtWebEngine, and Svelte.
 
 ## Features
 - Modern and intuitive **WinUI3-style** UI components
 - Rapid desktop app development with Python
-- Svelte-based FrontEnd integration
+- Frameless desktop window powered by Qt
+- Svelte-based frontend integration through `QWebChannel`
 - Custom fonts and Fluent icon support
+- Static frontend bundle loading without a local HTTP server
 
 ## Installation & Build
 You can install PyWebWinUI3 directly from PyPI:
@@ -20,7 +22,7 @@ You can define your UI using XAML files and control the app with Python. See the
 
 ### Minimal Example
 ```python
-from pywebwinui3 import MainWindow, loadPage
+from pywebwinui3.core import MainWindow
 
 app = MainWindow("PyWebWinUI3", "./app.ico")
 app.addSettings("Settings.xaml")
@@ -53,6 +55,7 @@ app.start()
 
 ### More
 - See `example/example.py` and the XAML files in `example/` for advanced usage.
+- The desktop shell is now based on PySide6 + QtWebEngine, so `PySide6` must be available in your environment.
 
 ## Contributing
 - PRs and issues are welcome!

@@ -1,130 +1,285 @@
-import webview
-import json
-from pathlib import Path
-import logging
-import bottle
-import inspect
-import threading
+from __future__ import annotations
 
-from .util import AccentColorWatcher, SyncDict, loadPage
+import inspect
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from .event import Event
 from .type import Status
+from .util import AccentColorWatcher, SyncDict, loadPage
 
 logger = logging.getLogger("pywebwinui3")
 
+if TYPE_CHECKING:
+	from .qt import WebviewAPI
+
+DEFAULT_WINDOW_WIDTH = 900
+DEFAULT_WINDOW_HEIGHT = 600
+DEFAULT_WINDOW_MIN_WIDTH = 100
+DEFAULT_WINDOW_MIN_HEIGHT = 100
+ABSOLUTE_WINDOW_MIN_WIDTH = 1
+ABSOLUTE_WINDOW_MIN_HEIGHT = 1
+
+
+class WindowEvents:
+	def __init__(self) -> None:
+		self._pywebviewready = Event()
+		self.closed = Event()
+		self.accentColorChange = Event()
+		self.themeChange = Event()
+		self.valueChange = Event()
+
+
 class MainWindow:
-	def __init__(self, title:str, icon:str=None):
-		self.server = bottle.Bottle()
+	def __init__(self, title: str, icon: str | None = None):
+		caller = inspect.currentframe().f_back
+		self.rootPath = Path(caller.f_code.co_filename).parent.resolve()
+		self.packagePath = Path(__file__).parent.resolve() / "web"
+		self._title = title
+		self._icon = icon
+
 		self.accent = AccentColorWatcher()
-		self.api = WebviewAPI(self, title)
+		self.events = WindowEvents()
+		self._api: WebviewAPI | None = None
+		self._window_min_width = DEFAULT_WINDOW_MIN_WIDTH
+		self._window_min_height = DEFAULT_WINDOW_MIN_HEIGHT
 
-		self.values = SyncDict({
-			"system_title": title,
-			"system_icon": icon,
-			"system_theme": "system",
-			"system_accent": self.accent.palette,
-			"system_pages": None,
-			"system_settings": None,
-			"system_nofication": [],
-			"system_pin": self.api._window.on_top
-		})
+		self.values = SyncDict(
+			{
+				"system_title": title,
+				"system_icon": icon,
+				"system_theme": "system",
+				"system_theme_resolved": self.accent.theme,
+				"system_accent": self.accent.palette,
+				"system_pages": None,
+				"system_settings": None,
+				"system_nofication": [],
+				"system_pin": False,
+				"system_window_width": DEFAULT_WINDOW_WIDTH,
+				"system_window_height": DEFAULT_WINDOW_HEIGHT,
+			}
+		)
+		self.values.sync = self._queue_sync_value
 
-		self.events = self.api._window.events
 		self.events.accentColorChange = self.accent.event
+		self.events.themeChange = self.accent.theme_event
 		self.events.valueChange = self.values.event
+		self.events.accentColorChange += lambda palette: self.values.set("system_accent", palette)
+		self.events.themeChange += lambda theme: self.values.set("system_theme_resolved", theme)
 
-		self.rootPath = Path(inspect.currentframe().f_back.f_code.co_filename).parent.resolve()
-		self.packagePath = Path(__file__).parent.resolve()/"web"
+	@property
+	def api(self) -> WebviewAPI:
+		if self._api is None:
+			from .qt import WebviewAPI
+
+			self._api = WebviewAPI(self, self._title, self._icon)
+		return self._api
+
+	def _queue_sync_value(self, key, value):
+		if self._api is None:
+			return
+		self._api.queue_sync_value(key, value)
 
 	def onValueChange(self, key):
 		def decorator(func):
-			self.events.valueChange += (key,func)
+			self.events.valueChange += (key, func)
 			return func
+
 		return decorator
-	
+
 	def onAccentColorChange(self):
 		def decorator(func):
 			self.events.accentColorChange += func
 			return func
+
 		return decorator
-	
+
+	def onThemeChange(self):
+		def decorator(func):
+			self.events.themeChange += func
+			return func
+
+		return decorator
+
 	def onSetup(self):
 		def decorator(func):
 			self.events._pywebviewready += func
 			return func
+
 		return decorator
-	
+
 	def onExit(self):
 		def decorator(func):
 			self.events.closed += func
 			return func
+
 		return decorator
 
-	def notice(self, level:Status, title:str, description:str, item:dict=None):
-		self.values['system_nofication'] = [*self.values["system_nofication"],[level,title,description,item]]
+	def notice(self, level: Status, title: str, description: str, item: dict | None = None):
+		self.values["system_nofication"] = [
+			*self.values["system_nofication"],
+			[level, title, description, item],
+		]
 
-	def _setup(self):
-		self.values.sync = lambda k,v: self.api._window.evaluate_js(f"window.syncValue('{k}',{json.dumps(v)},false)")
+	def init(self) -> dict:
+		return dict(self.values)
 
-	def init(self):
-		return self.values
-	
-	def pin(self, state:bool):
-		threading.Thread(target=lambda: setattr(self.api._window, "on_top", state), daemon=True).start()
-		return self.values.set('system_pin',state)
+	def pin(self, state: bool):
+		state = bool(state)
+		self.values.set("system_pin", state, self._api is not None)
+		if self._api is not None:
+			self._api.set_on_top(state)
+		return state
+
+	def _normalize_window_dimension(self, value, default: int, minimum: int, fallback=None) -> int:
+		minimum = max(1, int(minimum))
+
+		try:
+			fallback_value = int(round(float(fallback)))
+		except (TypeError, ValueError):
+			fallback_value = default
+
+		fallback_value = max(minimum, fallback_value)
+
+		try:
+			normalized = int(round(float(value)))
+		except (TypeError, ValueError):
+			return fallback_value
+
+		return max(minimum, normalized)
+
+	def get_window_min_size_values(self, min_width=None, min_height=None) -> tuple[int, int]:
+		current_min_width = self._window_min_width
+		current_min_height = self._window_min_height
+
+		resolved_min_width = self._normalize_window_dimension(
+			current_min_width if min_width is None else min_width,
+			DEFAULT_WINDOW_MIN_WIDTH,
+			ABSOLUTE_WINDOW_MIN_WIDTH,
+			current_min_width,
+		)
+		resolved_min_height = self._normalize_window_dimension(
+			current_min_height if min_height is None else min_height,
+			DEFAULT_WINDOW_MIN_HEIGHT,
+			ABSOLUTE_WINDOW_MIN_HEIGHT,
+			current_min_height,
+		)
+		return resolved_min_width, resolved_min_height
+
+	def set_window_min_size(self, min_width=None, min_height=None) -> tuple[int, int]:
+		resolved_min_width, resolved_min_height = self.get_window_min_size_values(min_width, min_height)
+		self._window_min_width = resolved_min_width
+		self._window_min_height = resolved_min_height
+		return resolved_min_width, resolved_min_height
+
+	def get_window_size_values(self, width=None, height=None) -> tuple[int, int]:
+		current_width = self.values.get("system_window_width")
+		current_height = self.values.get("system_window_height")
+		minimum_width, minimum_height = self.get_window_min_size_values()
+
+		resolved_width = self._normalize_window_dimension(
+			current_width if width is None else width,
+			DEFAULT_WINDOW_WIDTH,
+			minimum_width,
+			current_width,
+		)
+		resolved_height = self._normalize_window_dimension(
+			current_height if height is None else height,
+			DEFAULT_WINDOW_HEIGHT,
+			minimum_height,
+			current_height,
+		)
+		return resolved_width, resolved_height
+
+	def sync_window_size(self, width, height, sync: bool = True) -> tuple[int, int]:
+		resolved_width, resolved_height = self.get_window_size_values(width, height)
+
+		if self.values.get("system_window_width") != resolved_width:
+			self.values.set("system_window_width", resolved_width, sync)
+		if self.values.get("system_window_height") != resolved_height:
+			self.values.set("system_window_height", resolved_height, sync)
+
+		return resolved_width, resolved_height
+
+	def sync_window_min_size(self, min_width, min_height, sync: bool = True) -> tuple[int, int, int, int]:
+		resolved_min_width, resolved_min_height = self.set_window_min_size(min_width, min_height)
+
+		resolved_width, resolved_height = self.sync_window_size(
+			self.values.get("system_window_width"),
+			self.values.get("system_window_height"),
+			sync,
+		)
+		return resolved_min_width, resolved_min_height, resolved_width, resolved_height
 
 	def syncValue(self, key, value):
-		return self.values.set(key,value,False)
+		if key in {"system_window_width", "system_window_height"}:
+			return self.sync_window_size(
+				value if key == "system_window_width" else self.values.get("system_window_width"),
+				value if key == "system_window_height" else self.values.get("system_window_height"),
+				False,
+			)[0 if key == "system_window_width" else 1]
+		return self.values.set(key, value, False)
 
-	def addSettings(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None):
+	def addSettings(self, pageFile: str | Path | None = None, pageData: dict | None = None):
 		if pageFile and not pageData:
 			pageData = loadPage(pageFile)
-		logger.debug(f"Setting page: {pageData['attr']['path']}")
-		self.values['system_settings'] = pageData
+		logger.debug("Setting page: %s", pageData["attr"]["path"])
+		self.values["system_settings"] = pageData
 
-	def addPage(self, pageFile:str|Path=None, pageData:dict[str, str|dict|list]=None):
+	def addPage(self, pageFile: str | Path | None = None, pageData: dict | None = None):
 		if pageFile and not pageData:
 			pageData = loadPage(pageFile)
-		logger.debug(f"Page added: {pageData['attr']['path']}")
-		self.values['system_pages'] = {
+		logger.debug("Page added: %s", pageData["attr"]["path"])
+		self.values["system_pages"] = {
 			**(self.values["system_pages"] or {}),
-			pageData["attr"]["path"]:pageData
+			pageData["attr"]["path"]: pageData,
 		}
-	
-	def routeFile(self, filepath="index.html"):
-		if (self.packagePath/filepath).is_file():
-			return bottle.static_file(filepath, root=self.packagePath)
-		if (self.rootPath/filepath).is_file():
-			return bottle.static_file(filepath, root=self.rootPath)
 
-	def start(self, debug=False):
-		self.server.route('/',callback=self.routeFile)
-		self.server.route('/<filepath:path>',callback=self.routeFile)
-		
+	def resolve_path(self, value: str | Path | None) -> Path | None:
+		if value is None:
+			return None
+
+		path = Path(value)
+		if path.is_absolute():
+			return path
+
+		root_candidate = self.rootPath / path
+		if root_candidate.exists():
+			return root_candidate.resolve()
+
+		package_candidate = self.packagePath / path
+		if package_candidate.exists():
+			return package_candidate.resolve()
+
+		return root_candidate.resolve()
+
+	def resolve_resource_url(self, value):
+		if not isinstance(value, (str, Path)):
+			return value
+
+		raw_value = str(value).strip()
+		if not raw_value:
+			return value
+
+		lowered = raw_value.lower()
+		if lowered.startswith(("http://", "https://", "file://", "data:", "qrc://", "qrc:", "about:")):
+			return raw_value
+
+		resolved = self.resolve_path(raw_value)
+		if resolved is None or not resolved.exists():
+			return raw_value
+
+		return resolved.as_uri()
+
+	def start(self, debug: bool = False, min_width=None, min_height=None):
+		if min_width is not None or min_height is not None:
+			resolved_min_width, resolved_min_height, _, _ = self.sync_window_min_size(
+				self._window_min_width if min_width is None else min_width,
+				self._window_min_height if min_height is None else min_height,
+				sync=False,
+			)
+			if self._api is not None and getattr(self._api, "_window", None) is not None:
+				self._api.set_window_minimum_size(resolved_min_width, resolved_min_height)
 		self.accent.start()
-
-		webview.start(self._setup,debug=debug)
-
-class WebviewAPI:
-	def __init__(self, mainClass:MainWindow, title:str):
-		self._window = webview.create_window(
-			title,
-			mainClass.server,
-			# "http://localhost:5173/",
-			js_api=self,
-			background_color="#202020",
-			frameless=True,
-			easy_drag=False,
-			draggable=True,
-			text_select=True,
-			width=900,
-			height=600
-		)
-
-		logger.debug("Window created")
-
-		self.destroy = self._window.destroy
-		self.minimize = self._window.minimize
-
-		self.pin = mainClass.pin
-		self.init = mainClass.init
-		self.syncValue = mainClass.syncValue
+		self.api.start(debug=debug)

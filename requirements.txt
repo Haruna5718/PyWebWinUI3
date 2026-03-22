@@ -1,2 +1,2 @@
-pywebview
+PySide6
 pywin32

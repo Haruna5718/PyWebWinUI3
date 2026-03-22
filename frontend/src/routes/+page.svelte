@@ -1,5 +1,5 @@
-<script context="module">
-  	import { writable, get } from 'svelte/store';
+<script context="module" lang="ts">
+	import { writable, get } from 'svelte/store';
 	import '../lib/ThemeResources.scss';
 
 	export const values = writable<Record<string, any>>({
@@ -8,82 +8,312 @@
 		"system_title": null,
 		"system_icon": null,
 		"system_theme": "system",
+		"system_theme_resolved": "dark",
 		"system_accent": ["#fff","#fff","#fff","#888","#000","#000","#000"],
 		"system_pin": false,
 		"system_pages": null,
 		"system_settings": null,
-		"system_nofication": []
+		"system_nofication": [],
+		"system_window_width": 900,
+		"system_window_height": 600
 	});
 
-	export const format = (text:string) => {
-		let v = get(values);
+	const hasValue = (dict: Record<string, any>, key: string) =>
+		Object.prototype.hasOwnProperty.call(dict, key);
 
-		const t = text.match(/^(?<!\\)\{([^}]+)\}$/);
-		if(t) {
-			if(v[t[1]]){
-				return v[t[1]]
-			}
-			try {
-				return Function('v', `with(v){ return ${t[1]} }`)(v);
-			} catch(e) {
-				return text;
-			}
+	const expressionCache = new Map<string, (valueMap: Record<string, any>) => any>();
+	const formatCache = new Map<string, any>();
+	const attributeCache = new WeakMap<object, { version: number; value: Record<string, any> }>();
+	const componentCache = new WeakMap<object, { version: number; value: Record<string, any> }>();
+	const exactTemplatePattern = /^(?<!\\)\{([^}]+)\}$/;
+	const inlineTemplatePattern = /(?<!\\){(.*?)}/g;
+	const escapedTemplatePattern = /\\({.*?})/g;
+	const DEFAULT_ACCENT_PALETTE = ["#fff", "#fff", "#fff", "#888", "#000", "#000", "#000"];
+	const ACCENT_VARIANTS = ['Light3', 'Light2', 'Light1', '', 'Dark1', 'Dark2', 'Dark3'];
+
+	let formatVersion = 0;
+	let currentValues = get(values);
+
+	values.subscribe((nextValues) => {
+		currentValues = nextValues;
+		formatVersion += 1;
+		formatCache.clear();
+	});
+
+	const evaluateExpression = (expression: string, valueMap: Record<string, any>) => {
+		let evaluator = expressionCache.get(expression);
+		if (!evaluator) {
+			evaluator = Function('v', `with(v){ return ${expression} }`) as (valueMap: Record<string, any>) => any;
+			expressionCache.set(expression, evaluator);
 		}
-		
-		return text.replace(/(?<!\\){(.*?)}/g, (m, d) => {
-			if(v[d[1]]){
-				return v[d[1]]
+		return evaluator(valueMap);
+	};
+
+	export const format = (text: any) => {
+		if (typeof text !== 'string') {
+			return text;
+		}
+
+		if (!text.includes('{')) {
+			return text;
+		}
+
+		if (formatCache.has(text)) {
+			return formatCache.get(text);
+		}
+
+		const t = text.match(exactTemplatePattern);
+		if(t) {
+			let result = text;
+
+			if(hasValue(currentValues, t[1])){
+				result = currentValues[t[1]];
+			} else {
+				try {
+					result = evaluateExpression(t[1], currentValues);
+				} catch(e) {
+					result = text;
+				}
+			}
+
+			formatCache.set(text, result);
+			return result;
+		}
+
+		const result = text.replace(inlineTemplatePattern, (m, d) => {
+			if(hasValue(currentValues, d)){
+				return currentValues[d];
 			}
 			try {
-				return Function('v', `with(v){ return ${d} }`)(v);
+				return evaluateExpression(d, currentValues);
 			} catch(e) {
 				return m;
 			}
-		}).replace(/\\({.*?})/g, "$1");
+		}).replace(escapedTemplatePattern, "$1");
+
+		formatCache.set(text, result);
+		return result;
+	};
+
+	export const formatAttributes = (attrs: Record<string, any> = {}) => {
+		const cached = attributeCache.get(attrs);
+		if (cached?.version === formatVersion) {
+			return cached.value;
+		}
+
+		let formattedAttrs = attrs;
+		for (const [key, value] of Object.entries(attrs)) {
+			const formattedValue = format(value);
+			if (formattedValue === value) {
+				continue;
+			}
+
+			if (formattedAttrs === attrs) {
+				formattedAttrs = { ...attrs };
+			}
+			formattedAttrs[key] = formattedValue;
+		}
+
+		attributeCache.set(attrs, {
+			version: formatVersion,
+			value: formattedAttrs
+		});
+		return formattedAttrs;
+	};
+
+	export const formatComponentSource = (source: Record<string, any>) => {
+		const cached = componentCache.get(source);
+		if (cached?.version === formatVersion) {
+			return cached.value;
+		}
+
+		const formattedAttr = formatAttributes(source.attr ?? {});
+		const formattedText = format(source.text);
+		const formattedSource = formattedAttr === source.attr && formattedText === source.text
+			? source
+			: {
+				tag: source.tag,
+				attr: formattedAttr,
+				text: formattedText,
+				child: source.child
+			};
+
+		componentCache.set(source, {
+			version: formatVersion,
+			value: formattedSource
+		});
+		return formattedSource;
 	};
 </script>
 <script lang="ts">
-    import { onMount } from 'svelte';
+	import { onMount } from 'svelte';
+	import { get as getStoreValue } from 'svelte/store';
 
 	import Component from "../lib/Component.svelte";
+	import { getDesktopApi, installDesktopWindowBindings, queueDesktopSync, resolveDesktopResource } from '../lib/desktop';
+
+	const desktopApi = getDesktopApi();
+	const WINDOW_SIZE_KEYS = new Set(['system_window_width', 'system_window_height']);
 
 	let isNavOpen = true;
 
-    onMount(async () => {
-        window.syncValue = (target:string, value:any, sync=true) => {
-            if(!target) return;
-            values.update(dict=>{
-                return { ...dict, [target]: value };
-            });
-            if(target.endsWith("_Temp")) return;
-            if(sync) window.pywebview.api.syncValue(target, value)
-        }
-        history.replaceState({i:0},"");
-        hashChange();
-        while (!window?.pywebview?.api?.hasOwnProperty("init")) await new Promise(resolve => setTimeout(resolve, 10));
-        let appConfig = await window.pywebview.api.init();
-        values.update(dict=>{
-            return { ...dict, ...appConfig };
-        });
-    })
+	let resolvedSystemIcon = '';
+	let systemIconResolveRequest = 0;
+	let systemIconSource: unknown;
+	let sortedPageKeys: string[] = [];
+	let accentStyle = '';
+	let currentThemeClass = 'dark';
+	let settingsPage: Record<string, any> | null = null;
+
+	$: {
+		const source = $values["system_icon"];
+		if (source !== systemIconSource) {
+			systemIconSource = source;
+			const requestId = ++systemIconResolveRequest;
+
+			if (typeof source !== 'string' || !source) {
+				resolvedSystemIcon = source == null ? '' : String(source);
+			} else {
+				void resolveDesktopResource(source).then((nextSource) => {
+					if (requestId === systemIconResolveRequest) {
+						resolvedSystemIcon = nextSource || source;
+					}
+				});
+			}
+		}
+	}
+
+	$: {
+		const pages = $values["system_pages"] ?? {};
+		sortedPageKeys = Object.keys(pages).sort();
+	}
+
+	$: {
+		const accentPalette = Array.isArray($values["system_accent"]) ? $values["system_accent"] : DEFAULT_ACCENT_PALETTE;
+		accentStyle = `${ACCENT_VARIANTS
+			.map((variant, index) => `--SystemAccentColor${variant}:${accentPalette[index]};`)
+			.join('')}`
+			+ `--AccentFillColorLightSecondaryBrush: ${accentPalette[1]}E6;`
+			+ `--AccentFillColorLightTertiaryBrush: ${accentPalette[1]}CC;`
+			+ `--AccentFillColorDarkSecondaryBrush: ${accentPalette[4]}E6;`
+			+ `--AccentFillColorDarkTertiaryBrush: ${accentPalette[4]}CC;`;
+	}
+
+	$: currentThemeClass = $values["system_theme"] === "system"
+		? ($values["system_theme_resolved"] ?? "dark")
+		: ($values["system_theme"] ?? "dark");
+
+	$: settingsPage = $values["system_settings"] ?? null;
+
+	const applyPatch = (patch: Record<string, any>) => {
+		if (!patch || Object.keys(patch).length === 0) {
+			return;
+		}
+		values.update(dict=>{
+			Object.assign(dict, patch);
+			return dict;
+		});
+	};
+
+	let pendingWindowSizePatch: Record<string, any> | null = null;
+	let pendingWindowSizeFrame = 0;
+
+	const flushPendingWindowSizePatch = () => {
+		if (!pendingWindowSizePatch) {
+			pendingWindowSizeFrame = 0;
+			return;
+		}
+
+		const patch = pendingWindowSizePatch;
+		pendingWindowSizePatch = null;
+		pendingWindowSizeFrame = 0;
+		applyPatch(patch);
+	};
+
+	const queueWindowSizePatch = (patch: Record<string, any>) => {
+		pendingWindowSizePatch = {
+			...(pendingWindowSizePatch ?? {}),
+			...patch
+		};
+
+		if (pendingWindowSizeFrame) {
+			return;
+		}
+
+		pendingWindowSizeFrame = window.requestAnimationFrame(() => {
+			flushPendingWindowSizePatch();
+		});
+	};
+
+	const withDesktopApi = (callback: (api: Awaited<typeof desktopApi>) => void) => {
+		void desktopApi.then(callback);
+	};
+
+	onMount(() => {
+		const cleanupWindowBindings = installDesktopWindowBindings();
+
+		const init = async () => {
+			window.applyBackendPatch = (patch: Record<string, any>) => {
+				const nextPatch = patch ?? {};
+				const keys = Object.keys(nextPatch);
+				if (keys.length === 0) {
+					return;
+				}
+
+				if (keys.every((key) => WINDOW_SIZE_KEYS.has(key))) {
+					queueWindowSizePatch(nextPatch);
+					return;
+				}
+
+				if (pendingWindowSizeFrame) {
+					window.cancelAnimationFrame(pendingWindowSizeFrame);
+					flushPendingWindowSizePatch();
+				}
+
+				applyPatch(nextPatch);
+			};
+
+			window.syncValue = (target:string, value:any, sync=true) => {
+				if(!target) return;
+				if(target.endsWith("_Temp") && getStoreValue(values)[target] === value) return;
+				values.update(dict=>{
+					dict[target] = value;
+					return dict;
+				});
+				if(target.endsWith("_Temp")) return;
+				if(sync) queueDesktopSync(target, value);
+			};
+			history.replaceState({i:0},"");
+			hashChange();
+			let api = await desktopApi;
+			let appConfig = await api.init();
+			applyPatch(appConfig);
+			api.frontendReady();
+		};
+
+		void init();
+
+		return () => {
+			if (pendingWindowSizeFrame) {
+				window.cancelAnimationFrame(pendingWindowSizeFrame);
+			}
+			cleanupWindowBindings();
+		};
+	});
 
 	let hash:string;
 	let RecentPages = 0;
 	const hashChange = () => {
-		if(location.hash==`#${hash}`) return
-		hash = location.hash.replace("#","")
+		if(location.hash==`#${hash}`) return;
+		hash = location.hash.replace("#","");
 		if(history.state==null) history.replaceState({i:RecentPages+1}, "");
-		RecentPages = history.state.i;
-	}
+		RecentPages = history.state?.i ?? 0;
+	};
 </script>
 <svelte:window on:hashchange={hashChange}></svelte:window>
-<main class={$values['system_theme']} style="
+<main class={currentThemeClass} style="
 	grid-template-columns: {isNavOpen ? 230 : 50}px 1fr;
-	{['Light3','Light2','Light1','','Dark1','Dark2','Dark3'].map((v,i)=>`--SystemAccentColor${v}:${$values['system_accent'][i]};`).join('')}
-	--AccentFillColorLightSecondaryBrush: {$values['system_accent'][1]}E6;
-	--AccentFillColorLightTertiaryBrush: {$values['system_accent'][1]}CC;
-	--AccentFillColorDarkSecondaryBrush: {$values['system_accent'][4]}E6;
-	--AccentFillColorDarkTertiaryBrush: {$values['system_accent'][4]}CC;
+	{accentStyle}
 ">
 	<header>
 		<div class="pywebview-drag-region"></div>
@@ -93,47 +323,51 @@
 			</button>
 		{/if}
 		<div class="title pywebview-drag-region">
-			<img src={$values["system_icon"]} alt="" style="opacity: {$values["system_icon"]?1:0};"/>
+			<img src={resolvedSystemIcon} alt="" style="opacity: {resolvedSystemIcon?1:0};"/>
 			<p>{$values["system_title"]??""}</p>
 		</div>
 		{#if $values["system_pinTop"]}
-			<button on:click={()=>window.pywebview.api.pin(!$values["system_pin"])}>{$values["system_pin"]?'':''}</button>
+			<button on:click={()=>withDesktopApi(api => api.pin(!$values["system_pin"]))}>{$values["system_pin"]?'':''}</button>
 		{/if}
-		<button on:click={()=>window.pywebview.api.minimize()}></button>
-		<button on:click={()=>window.pywebview.api.destroy()}></button>
+		<button on:click={()=>withDesktopApi(api => api.minimize())}></button>
+		<button on:click={()=>withDesktopApi(api => api.destroy())}></button>
 	</header>
-	<nav style="grid-template-rows: 40px 1fr {$values['system_settings'] ? '40px': ''};">
+	<nav style="grid-template-rows: 40px 1fr {$values['system_settings'] ? '40px' : ''};">
 		<button class="menuButton" style="width: 40px" on:click={()=>isNavOpen=!isNavOpen}>
 			<span class="icon"></span>
 		</button>
 		<section>
-			{#each Object.keys($values["system_pages"] ?? {}).sort() as key}
+			{#each sortedPageKeys as key}
 				{@const val = $values["system_pages"][key]}
+				{@const badgeState = format(val['attr']?.['state']??"")}
+				{@const badgeText = format(val["attr"]?.["badge"]??"")??""}
 				<button class:settingButton={val["attr"]?.["icon"]==""} class:Select={hash==key} on:click={()=>location.hash=key}>
 					<span class="icon">{val["attr"]?.["icon"] ?? ""}</span>
 					<span>{val["attr"]?.["name"] ?? key}</span>
-					{#if format(val['attr']?.['state']??"")}
-						<span class="badge l{format(val['attr']?.['state']??"")}">{format(val["attr"]?.["badge"]??"")??""}</span>
+					{#if badgeState}
+						<span class="badge l{badgeState}">{badgeText}</span>
 					{/if}
 				</button>
 			{/each}
 		</section>
-		{#if $values["system_settings"]}
-			{@const path = $values["system_settings"]["attr"]?.["path"] ?? "settings"}
-			{@const icon = $values["system_settings"]["attr"]?.["icon"] ?? ""}
-			{@const state = $values["system_settings"]["attr"]?.["state"]}
+		{#if settingsPage}
+			{@const path = settingsPage["attr"]?.["path"] ?? "settings"}
+			{@const icon = settingsPage["attr"]?.["icon"] ?? ""}
+			{@const state = settingsPage["attr"]?.["state"]}
+			{@const settingsBadgeState = format(state??"")}
+			{@const settingsBadgeText = format(settingsPage["attr"]?.["badge"]??"")??""}
 			<button class:settingButton={icon==""} class:Select={hash==path} on:click={()=>location.hash=path}>
 				<span class="icon">{icon}</span>
-				<span>{$values["system_settings"]["attr"]?.["name"] ?? "Settings"}</span>
-				{#if format(state??"")}
-						<span class="badge l{format(state??"")}">{format($values["system_settings"]["attr"]?.["badge"]??"")??""}</span>
-					{/if}
+				<span>{settingsPage["attr"]?.["name"] ?? "Settings"}</span>
+				{#if settingsBadgeState}
+					<span class="badge l{settingsBadgeState}">{settingsBadgeText}</span>
+				{/if}
 			</button>
 		{/if}
 	</nav>
 	{#key hash}
-		{#if $values["system_settings"]?.["attr"]?.["path"]==hash}
-			<Component rawData={$values["system_settings"]}/>
+		{#if settingsPage?.["attr"]?.["path"]==hash}
+			<Component rawData={settingsPage}/>
 		{:else if $values["system_pages"]?.[hash]}
 			<Component rawData={$values["system_pages"][hash]}/>
 		{:else if $values["system_pages"]==null}
@@ -189,7 +423,6 @@
 			width: fit-content;
 			display: flex;
 			gap: 10px;
-			align-items: center;
 			border-radius: 4px;
 			padding: 6px;
 			box-shadow: 0 0 4px 1px var(--SmokeFillColorDefaultBrush);
@@ -237,34 +470,28 @@
 			}
 			.content{
 				display: flex;
-				gap: 0;
 				flex-wrap: wrap;
-				min-height: 34px;
+				align-items: baseline;
 				.item{
 					display: flex;
 					align-self: center;
 				}
 				.title{
-					display: flex;
 					margin: 6px 8px 0 0;
 					line-height: 20px;
 				}
 				.description{
-					display: flex;
-					align-self: center;
-					flex-grow: 1;
 					font-size: 14px;
 					font-variation-settings: 'wght' 400;
-					word-wrap: break-word;
 					overflow-wrap: anywhere;
-					margin: 4px 8px 4px 0;
+					margin: 4px 0 6px 0;
 				}
 			}
 			.close{
-				flex: 0 0 34px;
+				width: 34px;
 				height: 34px;
+				flex: 0 0 34px;
 				border-radius: 4px;
-				align-self: flex-start;
 				&:hover{
 					background-color: var(--SubtleFillColorSecondaryBrush);
 				}
@@ -272,57 +499,6 @@
 					background-color: var(--SubtleFillColorTertiaryBrush);
 				}
 			}
-		}
-	}
-	.prevButton{
-		width: 40px;
-		height: 40px;
-		margin: 0;
-		color: var(--TextFillColorPrimaryBrush);
-		
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		&>.icon{
-			animation : prevMove 0.2s forwards alternate;
-			@keyframes prevMove {
-				0%{
-					transform: scaleX(0.8) translateX(12%);
-				}
-				80%{
-					transform: scaleX(1.1) translateX(-6%);
-				}
-				100%{
-					transform: scaleX(1) translateX(0);
-				}
-			}
-		}
-		&:active>.icon{
-			animation: none;
-			scale: 80% 100%;
-			translate: 12% 0%;
-		}
-	}
-	.settingButton{
-		&>.icon{
-			animation : settingRotate 0.6s forwards alternate;
-			@keyframes settingRotate {
-				0%{
-					transform: rotate(0);
-				}
-				100%{
-					transform: rotate(120deg);
-				}
-			}
-		}
-		&:active>.icon{
-			animation: none;
-			rotate: -60deg;
-		}
-	}
-	.menuButton{
-		&:active>.icon{
-			transform: scaleX(0.5);
 		}
 	}
 	main{
@@ -363,6 +539,7 @@
 			font-size: 15px;
 			margin: 5px;
 			border-radius: 4px;
+			z-index: 1;
 			&:hover{
 				background-color: var(--SubtleFillColorSecondaryBrush);
 				color: var(--TextFillColorSecondaryBrush);
@@ -406,7 +583,7 @@
 				min-height: 14px;
 				border-radius: 8px;
 				text-align: center;
-				transition: all 0.2s ease-out, right 0s, top 0s;
+				transition: all 0.2s ease, color 0.1s ease, right 0s, top 0s, width 0s, height 0s;
 				color: var(--TextOnAccentFillColorPrimaryBrush);
 				&.l0{
 					background-color: var(--SystemFillColorAttentionBrush);
@@ -454,6 +631,9 @@
 				height: 16px;
 				background-color: var(--AccentFillColorSecondaryBrush);
 			}
+			&:active{
+				color: currentColor;
+			}
 		}
 		section{
 			display: flex;
@@ -463,6 +643,63 @@
 			button{
 				margin-right: 1px;
 			}
+		}
+	}
+	@keyframes prevMove {
+		0%{
+			transform: scaleX(0.8) translateX(12%);
+		}
+		80%{
+			transform: scaleX(1.1) translateX(-6%);
+		}
+		100%{
+			transform: scaleX(1) translateX(0);
+		}
+	}
+	.prevButton{
+		width: 40px;
+		height: 40px;
+		margin: 0;
+		color: var(--TextFillColorPrimaryBrush);
+		
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		&>.icon{
+			animation : prevMove 0.2s forwards alternate;
+		}
+		&:active{
+			color: currentColor;
+				&>.icon{
+				animation: none;
+				scale: 80% 100%;
+				translate: 12% 0%;
+			}
+		}
+	}
+	@keyframes settingRotate {
+		0%{
+			transform: rotate(0);
+		}
+		100%{
+			transform: rotate(120deg);
+		}
+	}
+	.settingButton{
+		top: -0.6px;
+		padding: 0 0 0.6px 0;
+		&>.icon{
+			left: 0;
+			animation : settingRotate 0.6s forwards alternate;
+		}
+		&:active>.icon{
+			animation: none;
+			rotate: -60deg;
+		}
+	}
+	.menuButton{
+		&:active>.icon{
+			transform: scaleX(0.5);
 		}
 	}
 </style>
