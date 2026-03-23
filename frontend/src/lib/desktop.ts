@@ -12,6 +12,7 @@ type RawDesktopBackend = {
 	startWindowDrag: () => void;
 	startWindowResize: (edge: string) => void;
 	toggleMaximize: () => void;
+	showWindowMenu: () => void;
 	openExternal: (url: string) => void;
 };
 
@@ -27,6 +28,7 @@ export type DesktopApi = {
 	startWindowDrag: () => void;
 	startWindowResize: (edge: string) => void;
 	toggleMaximize: () => void;
+	showWindowMenu: () => void;
 	openExternal: (url: string) => void;
 };
 
@@ -42,6 +44,7 @@ const mockApi: DesktopApi = {
 	startWindowDrag: () => {},
 	startWindowResize: () => {},
 	toggleMaximize: () => {},
+	showWindowMenu: () => {},
 	openExternal: (url: string) => {
 		if (url) {
 			window.open(url, '_blank');
@@ -71,6 +74,7 @@ const wrapBackend = (backend: RawDesktopBackend): DesktopApi => ({
 	startWindowDrag: () => backend.startWindowDrag(),
 	startWindowResize: (edge: string) => backend.startWindowResize(edge),
 	toggleMaximize: () => backend.toggleMaximize(),
+	showWindowMenu: () => backend.showWindowMenu(),
 	openExternal: (url: string) => backend.openExternal(url)
 });
 
@@ -224,13 +228,34 @@ export const installDesktopWindowBindings = () => {
 		void getDesktopApi().then((api) => api.toggleMaximize());
 	};
 
+	const onContextMenu = (event: MouseEvent) => {
+		if (!(event.target instanceof Element)) {
+			return;
+		}
+
+		const region = event.target.closest('.pywebview-drag-region');
+		if (!region) {
+			return;
+		}
+
+		const interactive = event.target.closest(INTERACTIVE_SELECTOR);
+		if (interactive && interactive !== region) {
+			return;
+		}
+
+		event.preventDefault();
+		void getDesktopApi().then((api) => api.showWindowMenu());
+	};
+
 	document.addEventListener('mousedown', onMouseDown);
 	document.addEventListener('dblclick', onDoubleClick);
+	document.addEventListener('contextmenu', onContextMenu);
 	dragBindingsInstalled = true;
 
 	return () => {
 		document.removeEventListener('mousedown', onMouseDown);
 		document.removeEventListener('dblclick', onDoubleClick);
+		document.removeEventListener('contextmenu', onContextMenu);
 		dragBindingsInstalled = false;
 	};
 };

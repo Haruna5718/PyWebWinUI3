@@ -15,6 +15,7 @@ declare global {
 		startWindowDrag: () => void;
 		startWindowResize: (edge: string) => void;
 		toggleMaximize: () => void;
+		showWindowMenu: () => void;
 		openExternal: (url: string) => void;
 	}
 
