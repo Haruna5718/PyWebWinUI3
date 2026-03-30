@@ -6,6 +6,16 @@
 	let resolvedSource = '';
 	let resolveRequest = 0;
 	let sourceValue: unknown;
+	let payloadValue: unknown;
+	let frame: HTMLIFrameElement;
+
+	const postData = () => {
+		if (!frame?.contentWindow || payloadValue === undefined) {
+			return;
+		}
+
+		frame.contentWindow.postMessage(payloadValue, '*');
+	};
 
 	$: {
 		const source = data.attr.source;
@@ -24,12 +34,19 @@
 			}
 		}
 	}
+
+	$: payloadValue = data.attr.data;
+
+	$: if (resolvedSource) {
+		payloadValue;
+		postData();
+	}
 </script>
-<iframe src={resolvedSource} title="Webview" class:disabled={String(data.attr.disabled??"")=="true"} style="
+<iframe bind:this={frame} src={resolvedSource} title="Webview" class:disabled={String(data.attr.disabled??"")=="true"} style="
 	margin: {data.attr.margin ?? 0};
 	width: {data.attr.width ?? 'auto'};
 	height: {data.attr.height ?? 'auto'};
-"></iframe>
+" on:load={postData}></iframe>
 <style lang="scss">
 	iframe{
 		width: 100%;

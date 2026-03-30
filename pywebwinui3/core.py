@@ -68,6 +68,26 @@ class MainWindow:
 		self.events.accentColorChange += lambda palette: self.values.set("system_accent", palette)
 		self.events.themeChange += lambda theme: self.values.set("system_theme_resolved", theme)
 
+	@staticmethod
+	def _normalize_notice_level(level) -> int:
+		try:
+			return int(level)
+		except (TypeError, ValueError):
+			name = str(getattr(level, "name", level)).split(".")[-1]
+			return int(getattr(Status, name, Status.Critical))
+
+	@classmethod
+	def _normalize_notice_entry(cls, entry) -> list:
+		if not isinstance(entry, (list, tuple)):
+			return [int(Status.Critical), "", str(entry or ""), None]
+
+		level, title, description, item, *_ = [*entry, None, None, None, None]
+		return [cls._normalize_notice_level(level), title or "", description or "", item]
+
+	@classmethod
+	def _normalize_notice_items(cls, items) -> list[list]:
+		return [cls._normalize_notice_entry(entry) for entry in items or []]
+
 	@property
 	def api(self) -> WebviewAPI:
 		if self._api is None:
@@ -118,11 +138,13 @@ class MainWindow:
 
 	def notice(self, level: Status, title: str, description: str, item: dict | None = None):
 		self.values["system_nofication"] = [
-			*self.values["system_nofication"],
-			[level, title, description, item],
+			*self._normalize_notice_items(self.values["system_nofication"]),
+			self._normalize_notice_entry([level, title, description, item]),
 		]
 
 	def init(self) -> dict:
+		if self.values.get("system_nofication"):
+			self.values.set("system_nofication", self._normalize_notice_items(self.values["system_nofication"]), False)
 		return dict(self.values)
 
 	def pin(self, state: bool):

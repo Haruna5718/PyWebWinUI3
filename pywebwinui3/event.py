@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-import atexit
 import fnmatch
 import logging
-import os
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
 logger = logging.getLogger("pywebwinui3.eventmanager")
-
-_EVENT_WORKERS = max(4, min(32, (os.cpu_count() or 1) * 4))
-_EVENT_EXECUTOR = ThreadPoolExecutor(
-	max_workers=_EVENT_WORKERS,
-	thread_name_prefix="pywebwinui3-event",
-)
-atexit.register(lambda: _EVENT_EXECUTOR.shutdown(wait=False))
 
 
 def _call_listener(func: Callable[..., Any], args: tuple[Any, ...]):
@@ -36,7 +26,7 @@ class Event:
 
 		for func in listeners:
 			try:
-				_EVENT_EXECUTOR.submit(_call_listener, func, args)
+				_call_listener(func, args)
 			except Exception:
 				logger.error(traceback.format_exc())
 
@@ -62,36 +52,49 @@ class Event:
 
 class PathEvent:
 	def __init__(self) -> None:
-		self.items: dict[str, Event] = {}
+		self.exact_items: dict[str, Event] = {}
+		self.pattern_items: dict[str, Event] = {}
+
+	@staticmethod
+	def _is_pattern(target: str) -> bool:
+		return any(char in target for char in "*?[]")
+
+	def _bucket(self, target: str) -> dict[str, Event]:
+		return self.pattern_items if self._is_pattern(target) else self.exact_items
 
 	def set(self, target: str, *args: Any):
-		if not self.items:
+		if not self.exact_items and not self.pattern_items:
 			return
 
-		for key, event in tuple(self.items.items()):
-			if not fnmatch.fnmatch(target, key):
-				continue
-
+		exact_event = self.exact_items.get(target)
+		if exact_event is not None:
 			try:
-				event.set(target, *args)
+				exact_event.set(target, *args)
+			except Exception:
+				logger.error(traceback.format_exc())
+
+		for key, event in tuple(self.pattern_items.items()):
+			try:
+				if fnmatch.fnmatch(target, key):
+					event.set(target, *args)
 			except Exception:
 				logger.error(traceback.format_exc())
 
 	def __add__(self, item: list):
-		self.items.setdefault(item[0], Event()).__iadd__(item[1])
+		self._bucket(item[0]).setdefault(item[0], Event()).__iadd__(item[1])
 		return self
 
 	def __sub__(self, item: list):
-		self.items.setdefault(item[0], Event()).__isub__(item[1])
+		self._bucket(item[0]).setdefault(item[0], Event()).__isub__(item[1])
 		return self
 
 	def __iadd__(self, item: list):
-		self.items.setdefault(item[0], Event()).__iadd__(item[1])
+		self._bucket(item[0]).setdefault(item[0], Event()).__iadd__(item[1])
 		return self
 
 	def __isub__(self, item: list):
-		self.items.setdefault(item[0], Event()).__isub__(item[1])
+		self._bucket(item[0]).setdefault(item[0], Event()).__isub__(item[1])
 		return self
 
 	def __len__(self) -> int:
-		return len(self.items)
+		return len(self.exact_items) + len(self.pattern_items)

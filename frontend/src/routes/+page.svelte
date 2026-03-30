@@ -154,6 +154,14 @@
 
 	const desktopApi = getDesktopApi();
 	const WINDOW_SIZE_KEYS = new Set(['system_window_width', 'system_window_height']);
+	const STATUS_LEVELS: Record<string, number> = {
+		Attention: 0,
+		Success: 1,
+		Caution: 2,
+		Critical: 3,
+		Neutral: 4
+	};
+	const NOTICE_ICONS = ["", "", "", ""];
 
 	let isNavOpen = true;
 
@@ -164,6 +172,67 @@
 	let accentStyle = '';
 	let currentThemeClass = 'dark';
 	let settingsPage: Record<string, any> | null = null;
+
+	const tryNormalizeStatusLevel = (level: any): number | null => {
+		const clamp = (value: number) => Math.max(0, Math.min(NOTICE_ICONS.length - 1, Math.trunc(value)));
+
+		if (typeof level === 'number' && Number.isFinite(level)) {
+			return clamp(level);
+		}
+
+		if (typeof level === 'string') {
+			const value = level.trim();
+			const numeric = Number(value);
+			if (Number.isFinite(numeric)) {
+				return clamp(numeric);
+			}
+
+			const statusName = value.split('.').at(-1) ?? value;
+			if (statusName in STATUS_LEVELS) {
+				return STATUS_LEVELS[statusName];
+			}
+		}
+
+		if (level && typeof level === 'object') {
+			for (const key of ['value', '_value_', 'enum', 'name']) {
+				if (key in level) {
+					const normalized = tryNormalizeStatusLevel(level[key]);
+					if (normalized != null) {
+						return normalized;
+					}
+				}
+			}
+
+			if (typeof level.toString === 'function') {
+				const normalized = tryNormalizeStatusLevel(level.toString());
+				if (normalized != null) {
+					return normalized;
+				}
+			}
+		}
+
+		return null;
+	};
+
+	const normalizeStatusLevel = (level: any) =>
+		tryNormalizeStatusLevel(level) ?? STATUS_LEVELS.Critical;
+
+	const normalizeNotificationEntry = (entry: any) => {
+		if (!Array.isArray(entry)) {
+			return [STATUS_LEVELS.Critical, '', String(entry ?? ''), null];
+		}
+
+		const [level, title, description, item] = entry;
+		return [normalizeStatusLevel(level), title ?? '', description ?? '', item ?? null];
+	};
+
+	const normalizeNotifications = (items: any) =>
+		Array.isArray(items) ? items.map(normalizeNotificationEntry) : [];
+
+	const normalizePatch = (patch: Record<string, any>) =>
+		Object.prototype.hasOwnProperty.call(patch, 'system_nofication')
+			? { ...patch, system_nofication: normalizeNotifications(patch["system_nofication"]) }
+			: patch;
 
 	$: {
 		const source = $values["system_icon"];
@@ -209,8 +278,9 @@
 		if (!patch || Object.keys(patch).length === 0) {
 			return;
 		}
+		const normalizedPatch = normalizePatch(patch);
 		values.update(dict=>{
-			Object.assign(dict, patch);
+			Object.assign(dict, normalizedPatch);
 			return dict;
 		});
 	};
@@ -274,14 +344,15 @@
 			};
 
 			window.syncValue = (target:string, value:any, sync=true) => {
+				const nextValue = target === "system_nofication" ? normalizeNotifications(value) : value;
 				if(!target) return;
-				if(target.endsWith("_Temp") && getStoreValue(values)[target] === value) return;
+				if(target.endsWith("_Temp") && getStoreValue(values)[target] === nextValue) return;
 				values.update(dict=>{
-					dict[target] = value;
+					dict[target] = nextValue;
 					return dict;
 				});
 				if(target.endsWith("_Temp")) return;
-				if(sync) queueDesktopSync(target, value);
+				if(sync) queueDesktopSync(target, nextValue);
 			};
 			history.replaceState({i:0},"");
 			hashChange();
@@ -344,9 +415,9 @@
 				<button class:settingButton={val["attr"]?.["icon"]==""} class:Select={hash==key} on:click={()=>location.hash=key}>
 					<span class="icon">{val["attr"]?.["icon"] ?? ""}</span>
 					<span>{val["attr"]?.["name"] ?? key}</span>
-					{#if badgeState}
-						<span class="badge l{badgeState}">{badgeText}</span>
-					{/if}
+				{#if badgeState !== "" && badgeState != null}
+					<span class="badge l{badgeState}">{badgeText}</span>
+				{/if}
 				</button>
 			{/each}
 		</section>
@@ -359,7 +430,7 @@
 			<button class:settingButton={icon==""} class:Select={hash==path} on:click={()=>location.hash=path}>
 				<span class="icon">{icon}</span>
 				<span>{settingsPage["attr"]?.["name"] ?? "Settings"}</span>
-				{#if settingsBadgeState}
+				{#if settingsBadgeState !== "" && settingsBadgeState != null}
 					<span class="badge l{settingsBadgeState}">{settingsBadgeText}</span>
 				{/if}
 			</button>
@@ -384,16 +455,16 @@
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">
 		{#each $values["system_nofication"] as [level,title,description,item], ind}
 			<div class="InfoBar l{level}">
-				<span class="icon">{["","","",""][level]}</span>
+				<span class="icon">{NOTICE_ICONS[level] ?? NOTICE_ICONS[STATUS_LEVELS.Critical]}</span>
 				<span class="content">
 					<span class="title">{title}</span>
 					<span class="description">{description}</span>
-					{#if item}
-						<span class="item">
-							<Component rawData={item}/>
-						</span>
-					{/if}
 				</span>
+				{#if item}
+					<span class="item">
+						<Component rawData={item}/>
+					</span>
+				{/if}
 				<button class="close" on:click={()=>window.syncValue("system_nofication",$values["system_nofication"].filter((_:any, i:number)=>i!=ind))}></button>
 			</div>
 		{/each}
@@ -472,10 +543,6 @@
 				display: flex;
 				flex-wrap: wrap;
 				align-items: baseline;
-				.item{
-					display: flex;
-					align-self: center;
-				}
 				.title{
 					margin: 6px 8px 0 0;
 					line-height: 20px;
@@ -486,6 +553,10 @@
 					overflow-wrap: anywhere;
 					margin: 4px 0 6px 0;
 				}
+			}
+			.item{
+				flex: 0 0 auto;
+				margin: 2px 0 2px 0;
 			}
 			.close{
 				width: 34px;

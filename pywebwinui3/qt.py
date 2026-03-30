@@ -41,6 +41,25 @@ _flush_menu_themes = _get_ordinal_proc(_uxtheme, 136, None, [])
 _allow_dark_mode_for_window = _get_ordinal_proc(_uxtheme, 133, wintypes.BOOL, [wintypes.HWND, wintypes.BOOL])
 
 
+def _merge_chromium_flags(*flags: str):
+	current = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "").strip()
+	parts = [part for part in current.split() if part]
+	for flag in flags:
+		if flag not in parts:
+			parts.append(flag)
+	os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join(parts)
+
+
+def _configure_webengine_gpu():
+	_merge_chromium_flags(
+		"--enable-gpu-rasterization",
+		"--enable-zero-copy",
+		"--enable-native-gpu-memory-buffers",
+		"--enable-oop-rasterization",
+		"--ignore-gpu-blocklist",
+	)
+
+
 def _apply_native_menu_theme(dark: bool, hwnd: int | None = None):
 	if _set_preferred_app_mode is not None:
 		_set_preferred_app_mode(2 if dark else 3)
@@ -48,6 +67,49 @@ def _apply_native_menu_theme(dark: bool, hwnd: int | None = None):
 		_allow_dark_mode_for_window(hwnd, bool(dark))
 	if _flush_menu_themes is not None:
 		_flush_menu_themes()
+
+
+def _open_external_url(url: str | QUrl) -> bool:
+	raw = url if isinstance(url, str) else url.toString()
+	if not raw:
+		return False
+
+	parsed = QUrl(raw)
+	if parsed.isValid() and QDesktopServices.openUrl(parsed):
+		return True
+
+	if sys.platform.startswith("win"):
+		try:
+			os.startfile(raw)
+			return True
+		except OSError:
+			logger.debug("Fallback shell open failed for %s", raw, exc_info=True)
+
+	fallback = QUrl.fromUserInput(raw)
+	return fallback.isValid() and QDesktopServices.openUrl(fallback)
+
+
+_ANCHOR_INTERCEPT_SCRIPT = """
+(() => {
+	if (window.__pywebwinui3_external_anchor_hook__) return;
+	window.__pywebwinui3_external_anchor_hook__ = true;
+	document.addEventListener('click', (event) => {
+		const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+		if (!anchor) return;
+		const href = anchor.getAttribute('href') || '';
+		if (!href || href.startsWith('#')) return;
+		if (/^(about|data|file|qrc):/i.test(href)) return;
+		if (!/^(?:[a-z][a-z0-9+.-]*:|\\/\\/)/i.test(href)) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (window.desktop?.api?.openExternal) {
+			window.desktop.api.openExternal(href);
+			return;
+		}
+		window.open(href, anchor.getAttribute('target') || '_blank');
+	}, true);
+})();
+"""
 
 class MARGINS(ctypes.Structure):
 	_fields_ = [
@@ -71,7 +133,7 @@ class ExternalAwarePage(QWebEnginePage):
 			and navigation_type == QWebEnginePage.NavigationTypeLinkClicked
 			and url.scheme() not in {"about", "data", "file", "qrc"}
 		):
-			QDesktopServices.openUrl(url)
+			_open_external_url(url)
 			return False
 		return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
 
@@ -79,7 +141,7 @@ class ExternalAwarePage(QWebEnginePage):
 		page = QWebEnginePage(self.profile(), self)
 
 		def open_and_cleanup(url):
-			QDesktopServices.openUrl(url)
+			_open_external_url(url)
 			page.deleteLater()
 
 		page.urlChanged.connect(open_and_cleanup)
@@ -155,6 +217,12 @@ class FramelessWindow(QMainWindow):
 		settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
 		settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
 		settings.setAttribute(QWebEngineSettings.JavascriptCanAccessClipboard, True)
+		for attribute_name in ("WebGLEnabled", "Accelerated2dCanvasEnabled"):
+			attribute = getattr(QWebEngineSettings, attribute_name, None)
+			if attribute is None and hasattr(QWebEngineSettings, "WebAttribute"):
+				attribute = getattr(QWebEngineSettings.WebAttribute, attribute_name, None)
+			if attribute is not None:
+				settings.setAttribute(attribute, True)
 		if debug:
 			developer_extras = getattr(QWebEngineSettings, "DeveloperExtrasEnabled", None)
 			if developer_extras is None and hasattr(QWebEngineSettings, "WebAttribute"):
@@ -203,9 +271,10 @@ class FramelessWindow(QMainWindow):
 		if app is not None:
 			app.removeEventFilter(self)
 		self._set_resize_cursor(None)
+		self.hide()
 		if self._debug_tools_view is not None:
 			self._debug_tools_view.close()
-		self.closed.emit()
+		QTimer.singleShot(0, self.closed.emit)
 		super().closeEvent(event)
 
 	def _maximize_native(self):
@@ -217,6 +286,9 @@ class FramelessWindow(QMainWindow):
 		win32gui.ShowWindow(self._hwnd(), win32con.SW_RESTORE)
 
 	def _start_native_move(self):
+		handle = self.windowHandle()
+		if handle is not None and hasattr(handle, "startSystemMove") and handle.startSystemMove():
+			return
 		win32gui.ReleaseCapture()
 		win32api.SendMessage(self._hwnd(), win32con.WM_NCLBUTTONDOWN, win32con.HTCAPTION, 0)
 
@@ -307,6 +379,7 @@ class FramelessWindow(QMainWindow):
 
 	def _handle_load_finished(self, _ok: bool):
 		self._apply_window_background()
+		self.page.runJavaScript(_ANCHOR_INTERCEPT_SCRIPT)
 		self.page_loaded.emit(_ok)
 
 	def _sync_view_geometry(self):
@@ -544,6 +617,7 @@ class FramelessWindow(QMainWindow):
 			return super().eventFilter(watched, event)
 
 		if self._resize_edge_name is None and not self._belongs_to_window(watched):
+			self._set_resize_cursor(None)
 			return super().eventFilter(watched, event)
 
 		global_pos = event.globalPosition().toPoint()
@@ -705,8 +779,11 @@ class WebviewAPI(QObject):
 			return
 
 		self._debug_mode = debug
+		_configure_webengine_gpu()
 		app = QApplication.instance()
 		if app is None:
+			if hasattr(Qt, "AA_UseDesktopOpenGL"):
+				QApplication.setAttribute(Qt.AA_UseDesktopOpenGL, True)
 			QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
 			app = QApplication(sys.argv)
 			self._owns_app = True
@@ -915,7 +992,7 @@ class WebviewAPI(QObject):
 
 	@Slot(str)
 	def openExternal(self, url: str):
-		QDesktopServices.openUrl(QUrl(url))
+		_open_external_url(url)
 
 	@Slot(str, result=str)
 	def resolveResource(self, value: str):

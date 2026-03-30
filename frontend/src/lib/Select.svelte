@@ -181,6 +181,9 @@
 		translate: -50%;
 		gap: 5px;
 		width: max-content;
+		max-height: 50vh;
+		overflow-x: hidden;
+		overflow-y: auto;
 		box-shadow: 0 1px 1px 0 var(--SmokeFillColorDefaultBrush);
 	}
 </style>
