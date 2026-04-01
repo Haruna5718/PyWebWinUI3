@@ -86,16 +86,70 @@
 		return '';
 	};
 
+	const hasSelectableOption = (children: ComponentNode[]): boolean => {
+		for (const rawChild of children) {
+			const child = formatComponentSource(rawChild);
+
+			if (String(child?.attr?.disabled ?? "") === "true") {
+				continue;
+			}
+
+			if (child?.tag === "Option") {
+				return true;
+			}
+
+			if (child?.tag === "If") {
+				const condition = (child.attr?.raw ?? child.attr?.data) ? "True" : "False";
+				const branch = child.child?.find((item: ComponentNode) => item.tag === condition);
+				if (branch && hasSelectableOption(branch.child ?? [])) {
+					return true;
+				}
+				continue;
+			}
+
+			if (child?.tag === "Match") {
+				const branch = child.child?.find((item: ComponentNode) => child.attr?.data == item.attr?.target)
+					?? child.child?.find((item: ComponentNode) => !item.attr?.target);
+				if (branch && hasSelectableOption(branch.child ?? [])) {
+					return true;
+				}
+				continue;
+			}
+
+			if (child?.tag === "Repeat") {
+				const repeatCount = Number(child.attr?.data) || 0;
+				for (let index = 0; index < repeatCount; index += 1) {
+					const repeatedChildren = (rawChild.child ?? []).map((repeatChild: ComponentNode) => formatIndexAll(repeatChild, index));
+					if (hasSelectableOption(repeatedChildren)) {
+						return true;
+					}
+				}
+				continue;
+			}
+
+			if (child?.child?.length && hasSelectableOption(child.child)) {
+				return true;
+			}
+		}
+
+		return false;
+	};
+
 	let open=false
 	let main:HTMLButtonElement
 	let formattedChildren: Record<string, any>[] = [];
 	let optionValueKey = '';
 	let selectedText = '';
+	let hasOptions = false;
 
 	$: formattedChildren = open
 		? data.child.map((child: Record<string, any>) => formatOption(formatComponentSource(child)))
 		: [];
 	$: optionValueKey = `${data.attr.value}._Temp`;
+	$: hasOptions = hasSelectableOption(data.child ?? []);
+	$: if (!hasOptions && open) {
+		open = false;
+	}
 	$: {
 		const currentValue = $values[data.attr.value];
 		const tempValue = $values[optionValueKey];
@@ -120,13 +174,13 @@
 	width: {data.attr.width ?? 'auto'};
 	height: {data.attr.height ?? 'auto'};
 ">
-	<button class="main" on:click={()=>{open=!open}} bind:this={main}>
+	<button class="main" on:click={()=>{if(hasOptions && String(data.attr.disabled??"")!="true")open=!open}} bind:this={main}>
 		<p>
 			{data.text?`${data.text}: `:''}{selectedText}
 		</p>
 		<span></span>
 	</button>
-	<div class="menu" style="display: {open?'flex':'none'};">
+	<div class="menu" style="display: {open&&hasOptions?'flex':'none'};">
 		{#each formattedChildren as childData}
 			<Component formatData={childData} />
 		{/each}

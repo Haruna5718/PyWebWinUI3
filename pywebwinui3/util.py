@@ -40,15 +40,6 @@ class SyncDict(dict):
 		self.event = event or PathEvent()
 		self.sync = sync
 
-	@staticmethod
-	def _is_same_value(before:Any, after:Any):
-		if before is after:
-			return True
-		try:
-			return before == after
-		except Exception:
-			return False
-
 	def _sync(self, key, before, after, sync):
 		if sync and self.sync:
 			self.sync(key, after)
@@ -56,8 +47,6 @@ class SyncDict(dict):
 
 	def __setitem__(self, key:str, value:Any, sync=True):
 		before = self.get(key, None)
-		if self._is_same_value(before, value):
-			return value
 		super().__setitem__(key, value)
 		self._sync(key, before, value, sync)
 		return value
