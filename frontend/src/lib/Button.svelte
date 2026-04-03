@@ -1,19 +1,20 @@
 <script lang="ts">
-	import { values } from '../routes/+page.svelte';
-	import { openExternal } from './desktop';
+	import { values, getValueByPath } from '../routes/+page.svelte';
+	import { openLink } from './desktop';
 
 	export let data: { [key: string]: any };
+	$: currentValue = getValueByPath($values, data.attr.value);
 
 	const click = () => {
 		if(data.attr.type=="toggle"){
-			window.syncValue(data.attr.value, !$values[data.attr.value])
+			window.syncValue(data.attr.value, !currentValue)
 		}else{
-			if(data.attr.type=="link"&&data.attr.url) openExternal(data.attr.url,`_${data.attr.target??'blank'}`)
+			if(data.attr.type=="link"&&data.attr.url) openLink(data.attr.url,`_${data.attr.target??'blank'}`)
 			window.syncValue(data.attr.value, true)
 		}
 	}
 </script>
-<button class="main" class:select={data.attr.type=="toggle"&&$values[data.attr.value]} disabled={String(data.attr.disabled??"")=="true"} on:click={click} style="
+<button class="main" class:select={data.attr.type=="toggle"&&currentValue} disabled={String(data.attr.disabled??"")=="true"} on:click={click} style="
 	margin: {data.attr.margin ?? 0};
 	width: {data.attr.width ?? 'fit-content'};
 	height: {data.attr.height ?? 'fit-content'};

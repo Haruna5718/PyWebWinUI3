@@ -45,8 +45,14 @@
             align-self: stretch;
             flex-grow: 1;
             gap: 4px;
-            padding: 36px 32px 36px 36px;
+            padding: 36px 22px 36px 36px;
             align-items: center;
+            &::-webkit-scrollbar{
+                width: 14px;
+            }
+            &::-webkit-scrollbar-thumb{
+                border: 3px solid transparent;
+            }
         }
     }
 </style>

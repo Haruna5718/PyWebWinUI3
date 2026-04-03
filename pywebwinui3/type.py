@@ -1,6 +1,4 @@
-import enum
-
-class Status(enum.IntEnum):
+class Status:
 	Attention = 0
 	Success = 1
 	Caution = 2

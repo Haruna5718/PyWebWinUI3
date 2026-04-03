@@ -3,11 +3,44 @@
     export let data: { [key: string]: any };
     let open=false
     $: Header = data.child.find((d:any)=>"Header"==d.tag)
+
+    function toggle(event?: MouseEvent | KeyboardEvent) {
+        if (String(data.attr.disabled ?? "") == "true") {
+            return;
+        }
+        if (event && "target" in event) {
+            const target = event.target as HTMLElement | null;
+            const currentTarget = event.currentTarget as HTMLElement | null;
+            const interactive = target?.closest(
+                "button, a, input, select, textarea, summary, [role='button'], [contenteditable='true']"
+            );
+            if (interactive && interactive !== currentTarget) {
+                return;
+            }
+        }
+        open = !open;
+    }
+
+    function onKeydown(event: KeyboardEvent) {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggle(event);
+        }
+    }
 </script>
 <div class="main" style="
     border-radius: {data.attr.round ?? '4px'};
 ">
-    <button on:click={()=>{open=!open}} class:open={open} disabled={String(data.attr.disabled??"")=="true"}>
+    <div
+        class="button"
+        class:open={open}
+        class:disabled={String(data.attr.disabled??"")=="true"}
+        role="button"
+        tabindex={String(data.attr.disabled??"")=="true" ? -1 : 0}
+        aria-expanded={open}
+        on:click={toggle}
+        on:keydown={onKeydown}
+    >
         <span class="header" style="
             gap: {Header?.attr?.gap ?? '4px'};
             padding: {Header?.attr?.padding ?? '16px'};
@@ -18,7 +51,7 @@
             {/each}
         </span>
         <span class="arrow"></span>
-    </button>
+    </div>
     {#if open}
         {#each data.child.filter((d:any)=>"Content"==d.tag) ?? [] as child}
             <div class="content" style="
@@ -42,13 +75,14 @@
         
         gap: 0;
         
-        button{
+        .button{
             align-items: inherit;
             display: flex;
             flex-grow: 1;
             align-self: stretch;
             flex-direction: row;
             border-radius: inherit;
+            cursor: pointer;
             
             border: 1px solid var(--CardStrokeColorDefaultSolidBrush);
             background-color: var(--CardBackgroundFillColorDefaultBrush);
@@ -65,6 +99,10 @@
                     margin: 16px 16px 16px 0;
                 }
             }
+            &:focus-visible{
+                outline: 2px solid var(--AccentFillColorDefaultBrush);
+                outline-offset: -2px;
+            }
             &:hover{
                 background-color: var(--ControlFillColorSecondaryBrush);
                 border-color: var(--ControlStrokeColorDefaultBrush);
@@ -75,6 +113,11 @@
                 .arrow{
                     transform: translateY(-1px);
                 }
+            }
+            &.disabled{
+                cursor: default;
+                pointer-events: none;
+                opacity: 0.7;
             }
             &.open{
                 border-bottom-left-radius: 0;

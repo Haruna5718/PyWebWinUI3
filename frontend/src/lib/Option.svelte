@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { values } from '../routes/+page.svelte';
+	import { values, getValueByPath } from '../routes/+page.svelte';
 	export let data: { [key: string]: any };
 
 	$: optionValueKey = `${data.attr.optionValue}._Temp`;
-	$: isSelected = $values[data.attr.optionValue] == data.attr.value;
+	$: isSelected = getValueByPath($values, data.attr.optionValue) == data.attr.value;
 	$: if (
 		typeof window !== 'undefined'
 		&& typeof window.syncValue === 'function'
 		&& isSelected
-		&& $values[optionValueKey] !== data.text
+		&& getValueByPath($values, optionValueKey) !== data.text
 	) {
 		window.syncValue(optionValueKey, data.text);
 	}

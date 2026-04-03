@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { values } from '../routes/+page.svelte';
+	import { values, getValueByPath } from '../routes/+page.svelte';
 	export let data: { [key: string]: any };
+	$: checked = !!getValueByPath($values, data.attr.value);
 </script>
 <span class="main" class:disabled={String(data.attr.disabled??"")=="true"} style="
 	margin: {data.attr.margin ?? 0};
@@ -10,17 +11,17 @@
 		align-items: {data.attr.align=="right"?'flex-start':'flex-end'};
 	">
 		<label for="switch.{data.attr.value}" style="
-			opacity: {$values[data.attr.value]?'1':'0'};
+			opacity: {checked?'1':'0'};
 		">
 			{data.attr.on??'ON'}
 		</label>
 		<label for="switch.{data.attr.value}" style="
-			opacity: {$values[data.attr.value]?'0':'1'};
+			opacity: {checked?'0':'1'};
 		">
 			{data.attr.off??'OFF'}
 		</label>
 	</span>
-	<input id="switch.{data.attr.value}" type="checkbox" checked={$values[data.attr.value]} on:input={()=>{window.syncValue(data.attr.value, !$values[data.attr.value])}}/>
+	<input id="switch.{data.attr.value}" type="checkbox" checked={checked} on:input={()=>{window.syncValue(data.attr.value, !checked)}}/>
 </span>
 <style lang="scss">
 	.main{

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { values } from '../routes/+page.svelte';
+	import { values, getValueByPath } from '../routes/+page.svelte';
 	export let data: { [key: string]: any };
 	let ispasswordShow = false
 	let padding:number
+	$: value = getValueByPath($values, data.attr.value);
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
 	margin: {data.attr.margin ?? 0};
@@ -15,13 +16,13 @@
 		on:input={(e)=>{window.syncValue(data.attr.value, data.attr.type=="number"?Number(e.currentTarget.value):e.currentTarget.value)}}
 		min={data.attr.min}
 		max={data.attr.max}
-		value={$values[data.attr.value]}
+		value={value}
 		style="padding-right: {(padding??10)-2}px;"
 	/>
 	{#if data.attr.type=="number"}
 		<span class="buttons" bind:clientWidth={padding}>
-			<button on:click={()=>window.syncValue(data.attr.value, Number($values[data.attr.value])+1)}></button>
-			<button on:click={()=>window.syncValue(data.attr.value, Number($values[data.attr.value])-1)}></button>
+			<button on:click={()=>window.syncValue(data.attr.value, Number(value)+1)}></button>
+			<button on:click={()=>window.syncValue(data.attr.value, Number(value)-1)}></button>
 		</span>
 	{/if}
 	{#if data.attr.type=="password"}

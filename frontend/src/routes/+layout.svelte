@@ -1,5 +1,30 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { openLink } from '$lib/desktop';
+
 	let { children } = $props();
+
+	onMount(() => {
+		const handleClick = (event: MouseEvent) => {
+			const target = event.target;
+			if (!(target instanceof Element)) return;
+
+			const anchor = target.closest('a[href]');
+			if (!(anchor instanceof HTMLAnchorElement)) return;
+
+			const href = anchor.getAttribute('href') || '';
+			if (!href || href.startsWith('#')) return;
+			if (/^(about|data|file|qrc):/i.test(href)) return;
+			if (!/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return;
+
+			event.preventDefault();
+			event.stopPropagation();
+			openLink(href, anchor.getAttribute('target') || '_blank');
+		};
+
+		document.addEventListener('click', handleClick, true);
+		return () => document.removeEventListener('click', handleClick, true);
+	});
 </script>
 
 <svelte:head>
@@ -55,6 +80,9 @@
 			border: 2px solid var(--FocusStrokeColorOuterBrush);
 			border-radius: 4px;
 			pointer-events: none;
+		}
+		body{
+			background-color: var(--SolidBackgroundFillColorBaseBrush);
 		}
 	</style>
 </svelte:head>

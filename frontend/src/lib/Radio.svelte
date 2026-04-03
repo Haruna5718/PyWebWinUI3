@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { values } from '../routes/+page.svelte';
+	import { values, getValueByPath } from '../routes/+page.svelte';
 	export let data: { [key: string]: any };
-	$: checked = $values[data.attr.group] == data.attr.value;
+	$: checked = getValueByPath($values, data.attr.group) == data.attr.value;
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
 	margin: {data.attr.margin ?? 0};

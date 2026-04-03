@@ -20,24 +20,172 @@
 
 	const hasValue = (dict: Record<string, any>, key: string) =>
 		Object.prototype.hasOwnProperty.call(dict, key);
+	type ValuePathToken = string | number;
+
+	const parseValuePath = (path: string): ValuePathToken[] | null => {
+		if (typeof path !== 'string' || !path.includes('[')) {
+			return null;
+		}
+
+		const firstBracket = path.indexOf('[');
+		const rootKey = path.slice(0, firstBracket);
+		if (!rootKey) {
+			return null;
+		}
+
+		const tokens: ValuePathToken[] = [rootKey];
+		let cursor = firstBracket;
+		while (cursor < path.length) {
+			if (path[cursor] !== '[') {
+				return null;
+			}
+
+			const end = path.indexOf(']', cursor + 1);
+			if (end === -1) {
+				return null;
+			}
+
+			const raw = path.slice(cursor + 1, end).trim();
+			if (!raw) {
+				return null;
+			}
+
+			if (/^\d+$/.test(raw)) {
+				tokens.push(Number(raw));
+			} else if (
+				(raw.startsWith('"') && raw.endsWith('"'))
+				|| (raw.startsWith("'") && raw.endsWith("'"))
+			) {
+				tokens.push(raw.slice(1, -1));
+			} else {
+				tokens.push(raw);
+			}
+
+			cursor = end + 1;
+		}
+
+		return tokens;
+	};
+
+	const clonePathContainer = (value: any, nextToken?: ValuePathToken) => {
+		if (Array.isArray(value)) {
+			return [...value];
+		}
+		if (value && typeof value === 'object') {
+			return { ...value };
+		}
+		return typeof nextToken === 'number' ? [] : {};
+	};
+
+	export const getValueByPath = (source: Record<string, any>, path: any) => {
+		if (typeof path !== 'string') {
+			return path;
+		}
+
+		const tokens = parseValuePath(path);
+		if (!tokens) {
+			return source[path];
+		}
+
+		let current: any = source;
+		for (const token of tokens) {
+			if (current == null) {
+				return undefined;
+			}
+			current = current[token as keyof typeof current];
+		}
+		return current;
+	};
+
+	export const setValueByPath = (source: Record<string, any>, path: string, value: any) => {
+		const tokens = parseValuePath(path);
+		if (!tokens) {
+			source[path] = value;
+			return;
+		}
+
+		const [rootKey, ...segments] = tokens;
+		if (!segments.length) {
+			source[rootKey as string] = value;
+			return;
+		}
+
+		const rootSource = source[rootKey as string];
+		const rootClone: any = clonePathContainer(rootSource, segments[0]);
+		let sourceCursor: any = rootSource;
+		let cursor: any = rootClone;
+
+		for (let index = 0; index < segments.length - 1; index += 1) {
+			const token = segments[index];
+			const nextToken = segments[index + 1];
+			const sourceValue = sourceCursor == null ? undefined : sourceCursor[token as keyof typeof sourceCursor];
+			const clonedValue = clonePathContainer(sourceValue, nextToken);
+
+			if (Array.isArray(cursor) && typeof token === 'number') {
+				while (cursor.length <= token) {
+					cursor.push(undefined);
+				}
+				cursor[token] = clonedValue;
+			} else {
+				cursor[token as keyof typeof cursor] = clonedValue;
+			}
+
+			cursor = clonedValue;
+			sourceCursor = sourceValue;
+		}
+
+		const lastToken = segments[segments.length - 1];
+		if (Array.isArray(cursor) && typeof lastToken === 'number') {
+			while (cursor.length <= lastToken) {
+				cursor.push(undefined);
+			}
+			cursor[lastToken] = value;
+		} else {
+			cursor[lastToken as keyof typeof cursor] = value;
+		}
+
+		source[rootKey as string] = rootClone;
+	};
 
 	const expressionCache = new Map<string, (valueMap: Record<string, any>) => any>();
-	const formatCache = new Map<string, any>();
-	const attributeCache = new WeakMap<object, { version: number; value: Record<string, any> }>();
-	const componentCache = new WeakMap<object, { version: number; value: Record<string, any> }>();
+	const formatPlanCache = new Map<string, any>();
+	const formatCache = new Map<string, { signature: string; value: any }>();
+	const attributeCache = new WeakMap<object, { signature: string; value: Record<string, any> }>();
+	const componentCache = new WeakMap<object, { signature: string; value: Record<string, any> }>();
 	const exactTemplatePattern = /^(?<!\\)\{([^}]+)\}$/;
 	const inlineTemplatePattern = /(?<!\\){(.*?)}/g;
 	const escapedTemplatePattern = /\\({.*?})/g;
+	const directKeyPattern = /^[A-Za-z_$][\w$]*$/;
 	const DEFAULT_ACCENT_PALETTE = ["#fff", "#fff", "#fff", "#888", "#000", "#000", "#000"];
 	const ACCENT_VARIANTS = ['Light3', 'Light2', 'Light1', '', 'Dark1', 'Dark2', 'Dark3'];
 
-	let formatVersion = 0;
 	let currentValues = get(values);
+	let trackedValues: Record<string, any> = { ...currentValues };
+	let globalValueVersion = 0;
+	const valueVersions = new Map<string, number>();
 
 	values.subscribe((nextValues) => {
 		currentValues = nextValues;
-		formatVersion += 1;
-		formatCache.clear();
+		const nextTrackedValues = { ...nextValues };
+		const keys = new Set([
+			...Object.keys(trackedValues),
+			...Object.keys(nextTrackedValues)
+		]);
+
+		let changed = false;
+		for (const key of keys) {
+			if (trackedValues[key] === nextTrackedValues[key]) {
+				continue;
+			}
+			valueVersions.set(key, (valueVersions.get(key) ?? 0) + 1);
+			changed = true;
+		}
+
+		if (changed) {
+			globalValueVersion += 1;
+		}
+
+		trackedValues = nextTrackedValues;
 	});
 
 	const evaluateExpression = (expression: string, valueMap: Record<string, any>) => {
@@ -49,55 +197,147 @@
 		return evaluator(valueMap);
 	};
 
+	const unescapeTemplateText = (text: string) => text.replace(escapedTemplatePattern, "$1");
+
+	const compileFormatPlan = (text: string) => {
+		if (!text.includes('{')) {
+			return { kind: 'raw' } as const;
+		}
+
+		const exactTemplateMatch = text.match(exactTemplatePattern);
+		if (exactTemplateMatch) {
+			const token = exactTemplateMatch[1];
+			if (directKeyPattern.test(token)) {
+				return { kind: 'exact-key', key: token } as const;
+			}
+			return { kind: 'exact-expression', expression: token } as const;
+		}
+
+		const parts: Array<string | { raw: string; key?: string; expression?: string }> = [];
+		const dependencies = new Set<string>();
+		let hasExpression = false;
+		let lastIndex = 0;
+
+		for (const match of text.matchAll(inlineTemplatePattern)) {
+			const fullMatch = match[0];
+			const token = match[1];
+			const index = match.index ?? 0;
+
+			if (index > lastIndex) {
+				parts.push(unescapeTemplateText(text.slice(lastIndex, index)));
+			}
+
+			if (directKeyPattern.test(token)) {
+				parts.push({ raw: fullMatch, key: token });
+				dependencies.add(token);
+			} else {
+				parts.push({ raw: fullMatch, expression: token });
+				hasExpression = true;
+			}
+
+			lastIndex = index + fullMatch.length;
+		}
+
+		if (lastIndex < text.length) {
+			parts.push(unescapeTemplateText(text.slice(lastIndex)));
+		}
+
+		return {
+			kind: 'template',
+			parts,
+			dependencies: hasExpression ? null : [...dependencies]
+		} as const;
+	};
+
+	const getFormatPlan = (text: string) => {
+		let plan = formatPlanCache.get(text);
+		if (!plan) {
+			plan = compileFormatPlan(text);
+			formatPlanCache.set(text, plan);
+		}
+		return plan;
+	};
+
+	const getFormatSignature = (text: any) => {
+		if (typeof text !== 'string') {
+			return '';
+		}
+
+		const plan = getFormatPlan(text);
+		if (plan.kind === 'raw') {
+			return '';
+		}
+
+		if (plan.kind === 'exact-expression') {
+			return `g:${globalValueVersion}`;
+		}
+
+		if (plan.kind === 'exact-key') {
+			return `${plan.key}:${valueVersions.get(plan.key) ?? 0}`;
+		}
+
+		if (plan.dependencies == null) {
+			return `g:${globalValueVersion}`;
+		}
+
+		return plan.dependencies
+			.map((key: string) => `${key}:${valueVersions.get(key) ?? 0}`)
+			.join('|');
+	};
+
 	export const format = (text: any) => {
 		if (typeof text !== 'string') {
 			return text;
 		}
 
-		if (!text.includes('{')) {
+		const plan = getFormatPlan(text);
+		if (plan.kind === 'raw') {
 			return text;
 		}
 
-		if (formatCache.has(text)) {
-			return formatCache.get(text);
+		const signature = getFormatSignature(text);
+		const cached = formatCache.get(text);
+		if (cached && cached.signature === signature) {
+			return cached.value;
 		}
 
-		const t = text.match(exactTemplatePattern);
-		if(t) {
-			let result = text;
+		let result = text;
 
-			if(hasValue(currentValues, t[1])){
-				result = currentValues[t[1]];
-			} else {
-				try {
-					result = evaluateExpression(t[1], currentValues);
-				} catch(e) {
-					result = text;
-				}
-			}
-
-			formatCache.set(text, result);
-			return result;
-		}
-
-		const result = text.replace(inlineTemplatePattern, (m, d) => {
-			if(hasValue(currentValues, d)){
-				return currentValues[d];
-			}
+		if (plan.kind === 'exact-key') {
+			result = hasValue(currentValues, plan.key) ? currentValues[plan.key] : text;
+		} else if (plan.kind === 'exact-expression') {
 			try {
-				return evaluateExpression(d, currentValues);
-			} catch(e) {
-				return m;
+				result = evaluateExpression(plan.expression, currentValues);
+			} catch (e) {
+				result = text;
 			}
-		}).replace(escapedTemplatePattern, "$1");
+		} else {
+			result = plan.parts.map((part: any) => {
+				if (typeof part === 'string') {
+					return part;
+				}
+				if (part.key) {
+					return hasValue(currentValues, part.key) ? currentValues[part.key] : part.raw;
+				}
+				try {
+					return evaluateExpression(part.expression, currentValues);
+				} catch (e) {
+					return part.raw;
+				}
+			}).join('');
+		}
 
-		formatCache.set(text, result);
+		formatCache.set(text, { signature, value: result });
 		return result;
 	};
 
 	export const formatAttributes = (attrs: Record<string, any> = {}) => {
+		const signature = Object.entries(attrs)
+			.map(([key, value]) => `${key}:${getFormatSignature(value)}`)
+			.join('|');
+
 		const cached = attributeCache.get(attrs);
-		if (cached?.version === formatVersion) {
+		if (cached && cached.signature === signature) {
 			return cached.value;
 		}
 
@@ -115,15 +355,19 @@
 		}
 
 		attributeCache.set(attrs, {
-			version: formatVersion,
+			signature,
 			value: formattedAttrs
 		});
 		return formattedAttrs;
 	};
 
 	export const formatComponentSource = (source: Record<string, any>) => {
+		const signature = `${Object.entries(source.attr ?? {})
+			.map(([key, value]) => `${key}:${getFormatSignature(value)}`)
+			.join('|')}::${getFormatSignature(source.text)}`;
+
 		const cached = componentCache.get(source);
-		if (cached?.version === formatVersion) {
+		if (cached && cached.signature === signature) {
 			return cached.value;
 		}
 
@@ -139,7 +383,7 @@
 			};
 
 		componentCache.set(source, {
-			version: formatVersion,
+			signature,
 			value: formattedSource
 		});
 		return formattedSource;
@@ -150,17 +394,11 @@
 	import { get as getStoreValue } from 'svelte/store';
 
 	import Component from "../lib/Component.svelte";
-	import { getDesktopApi, installDesktopWindowBindings, queueDesktopSync, resolveDesktopResource } from '../lib/desktop';
+	import { getDesktopApi, getDesktopResourceContextVersion, installDesktopWindowBindings, onDesktopResourceContextChange, queueDesktopSync, resolveDesktopResource } from '../lib/desktop';
 
 	const desktopApi = getDesktopApi();
 	const WINDOW_SIZE_KEYS = new Set(['system_window_width', 'system_window_height']);
-	const STATUS_LEVELS: Record<string, number> = {
-		Attention: 0,
-		Success: 1,
-		Caution: 2,
-		Critical: 3,
-		Neutral: 4
-	};
+
 	const NOTICE_ICONS = ["", "", "", ""];
 
 	let isNavOpen = true;
@@ -168,76 +406,18 @@
 	let resolvedSystemIcon = '';
 	let systemIconResolveRequest = 0;
 	let systemIconSource: unknown;
+	let systemIconResourceContextVersion = getDesktopResourceContextVersion();
+	let systemIconResolvedContextVersion = -1;
 	let sortedPageKeys: string[] = [];
 	let accentStyle = '';
 	let currentThemeClass = 'dark';
 	let settingsPage: Record<string, any> | null = null;
 
-	const tryNormalizeStatusLevel = (level: any): number | null => {
-		const clamp = (value: number) => Math.max(0, Math.min(NOTICE_ICONS.length - 1, Math.trunc(value)));
-
-		if (typeof level === 'number' && Number.isFinite(level)) {
-			return clamp(level);
-		}
-
-		if (typeof level === 'string') {
-			const value = level.trim();
-			const numeric = Number(value);
-			if (Number.isFinite(numeric)) {
-				return clamp(numeric);
-			}
-
-			const statusName = value.split('.').at(-1) ?? value;
-			if (statusName in STATUS_LEVELS) {
-				return STATUS_LEVELS[statusName];
-			}
-		}
-
-		if (level && typeof level === 'object') {
-			for (const key of ['value', '_value_', 'enum', 'name']) {
-				if (key in level) {
-					const normalized = tryNormalizeStatusLevel(level[key]);
-					if (normalized != null) {
-						return normalized;
-					}
-				}
-			}
-
-			if (typeof level.toString === 'function') {
-				const normalized = tryNormalizeStatusLevel(level.toString());
-				if (normalized != null) {
-					return normalized;
-				}
-			}
-		}
-
-		return null;
-	};
-
-	const normalizeStatusLevel = (level: any) =>
-		tryNormalizeStatusLevel(level) ?? STATUS_LEVELS.Critical;
-
-	const normalizeNotificationEntry = (entry: any) => {
-		if (!Array.isArray(entry)) {
-			return [STATUS_LEVELS.Critical, '', String(entry ?? ''), null];
-		}
-
-		const [level, title, description, item] = entry;
-		return [normalizeStatusLevel(level), title ?? '', description ?? '', item ?? null];
-	};
-
-	const normalizeNotifications = (items: any) =>
-		Array.isArray(items) ? items.map(normalizeNotificationEntry) : [];
-
-	const normalizePatch = (patch: Record<string, any>) =>
-		Object.prototype.hasOwnProperty.call(patch, 'system_nofication')
-			? { ...patch, system_nofication: normalizeNotifications(patch["system_nofication"]) }
-			: patch;
-
 	$: {
 		const source = $values["system_icon"];
-		if (source !== systemIconSource) {
+		if (source !== systemIconSource || systemIconResolvedContextVersion !== systemIconResourceContextVersion) {
 			systemIconSource = source;
+			systemIconResolvedContextVersion = systemIconResourceContextVersion;
 			const requestId = ++systemIconResolveRequest;
 
 			if (typeof source !== 'string' || !source) {
@@ -278,9 +458,10 @@
 		if (!patch || Object.keys(patch).length === 0) {
 			return;
 		}
-		const normalizedPatch = normalizePatch(patch);
 		values.update(dict=>{
-			Object.assign(dict, normalizedPatch);
+			for (const [key, value] of Object.entries(patch)) {
+				setValueByPath(dict, key, value);
+			}
 			return dict;
 		});
 	};
@@ -321,6 +502,9 @@
 
 	onMount(() => {
 		const cleanupWindowBindings = installDesktopWindowBindings();
+		const cleanupResourceContext = onDesktopResourceContextChange((version) => {
+			systemIconResourceContextVersion = version;
+		});
 
 		const init = async () => {
 			window.applyBackendPatch = (patch: Record<string, any>) => {
@@ -344,11 +528,11 @@
 			};
 
 			window.syncValue = (target:string, value:any, sync=true) => {
-				const nextValue = target === "system_nofication" ? normalizeNotifications(value) : value;
+				const nextValue = value;
 				if(!target) return;
-				if(target.endsWith("_Temp") && getStoreValue(values)[target] === nextValue) return;
+				if(target.endsWith("_Temp") && getValueByPath(getStoreValue(values), target) === nextValue) return;
 				values.update(dict=>{
-					dict[target] = nextValue;
+					setValueByPath(dict, target, nextValue);
 					return dict;
 				});
 				if(target.endsWith("_Temp")) return;
@@ -369,6 +553,7 @@
 				window.cancelAnimationFrame(pendingWindowSizeFrame);
 			}
 			cleanupWindowBindings();
+			cleanupResourceContext();
 		};
 	});
 
@@ -455,7 +640,7 @@
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">
 		{#each $values["system_nofication"] as [level,title,description,item], ind}
 			<div class="InfoBar l{level}">
-				<span class="icon">{NOTICE_ICONS[level] ?? NOTICE_ICONS[STATUS_LEVELS.Critical]}</span>
+				<span class="icon">{NOTICE_ICONS[level]}</span>
 				<span class="content">
 					<span class="title">{title}</span>
 					<span class="description">{description}</span>

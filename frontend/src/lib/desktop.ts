@@ -57,10 +57,20 @@ let pendingSyncPatch: DesktopState = {};
 let pendingSyncFrame = 0;
 let dragBindingsInstalled = false;
 const resourceResolutionCache = new Map<string, Promise<string>>();
+let resourceContextVersion = 0;
+const resourceContextListeners = new Set<(version: number) => void>();
 const EXTERNAL_RESOURCE_PATTERN = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[a-z]:[\\/]/i;
 
 const INTERACTIVE_SELECTOR = 'button, input, textarea, select, option, a, label, iframe, [data-no-drag], [contenteditable="true"]';
+
+const notifyDesktopResourceContextChanged = () => {
+	resourceResolutionCache.clear();
+	resourceContextVersion += 1;
+	for (const listener of resourceContextListeners) {
+		listener(resourceContextVersion);
+	}
+};
 
 const wrapBackend = (backend: RawDesktopBackend): DesktopApi => ({
 	init: () => new Promise((resolve) => backend.init(resolve)),
@@ -97,18 +107,17 @@ export const getDesktopApi = () => {
 		return Promise.resolve(mockApi);
 	}
 
-	if (window.desktop?.api) {
+	if (window.desktop?.api && window.desktop.api !== mockApi) {
 		return Promise.resolve(window.desktop.api);
+	}
+
+	const transport = window.qt?.webChannelTransport;
+	if (!transport) {
+		return Promise.resolve(mockApi);
 	}
 
 	if (!desktopApiPromise) {
 		desktopApiPromise = (async () => {
-			const transport = window.qt?.webChannelTransport;
-			if (!transport) {
-				window.desktop = { api: mockApi };
-				return mockApi;
-			}
-
 			try {
 				await loadQtWebChannel();
 				const api = await new Promise<DesktopApi>((resolve, reject) => {
@@ -129,10 +138,11 @@ export const getDesktopApi = () => {
 				});
 
 				window.desktop = { api };
+				notifyDesktopResourceContextChanged();
 				return api;
 			} catch (error) {
 				console.error(error);
-				window.desktop = { api: mockApi };
+				desktopApiPromise = null;
 				return mockApi;
 			}
 		})();
@@ -171,6 +181,10 @@ export const resolveDesktopResource = (source: unknown) => {
 		return Promise.resolve(source);
 	}
 
+	if (typeof window === 'undefined' || !window.qt?.webChannelTransport) {
+		return Promise.resolve(source);
+	}
+
 	const cached = resourceResolutionCache.get(source);
 	if (cached) {
 		return cached;
@@ -183,6 +197,15 @@ export const resolveDesktopResource = (source: unknown) => {
 
 	resourceResolutionCache.set(source, resolution);
 	return resolution;
+};
+
+export const getDesktopResourceContextVersion = () => resourceContextVersion;
+
+export const onDesktopResourceContextChange = (listener: (version: number) => void) => {
+	resourceContextListeners.add(listener);
+	return () => {
+		resourceContextListeners.delete(listener);
+	};
 };
 
 export const installDesktopWindowBindings = () => {
@@ -273,4 +296,37 @@ export const openExternal = (url: string, target = '_blank') => {
 
 		window.open(url, target);
 	});
+};
+
+export const navigateInternalHash = (url: string) => {
+	if (typeof window === 'undefined' || !url) {
+		return false;
+	}
+
+	try {
+		const resolved = new URL(url, window.location.href);
+		if (
+			!resolved.hash
+			|| resolved.protocol !== window.location.protocol
+			|| resolved.host !== window.location.host
+			|| resolved.pathname !== window.location.pathname
+			|| resolved.search !== window.location.search
+		) {
+			return false;
+		}
+
+		if (window.location.hash !== resolved.hash) {
+			window.location.hash = resolved.hash;
+		}
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+export const openLink = (url: string, target = '_blank') => {
+	if (navigateInternalHash(url)) {
+		return;
+	}
+	openExternal(url, target);
 };

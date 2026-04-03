@@ -1,13 +1,20 @@
 <script lang="ts">
-	import { resolveDesktopResource } from './desktop';
+	import { onMount } from 'svelte';
+	import { getDesktopResourceContextVersion, onDesktopResourceContextChange, resolveDesktopResource } from './desktop';
 
 	export let data: { [key: string]: any };
 
 	let resolvedSource = '';
 	let resolveRequest = 0;
 	let sourceValue: unknown;
+	let resourceContextVersion = getDesktopResourceContextVersion();
+	let resolvedContextVersion = -1;
 	let payloadValue: unknown;
 	let frame: HTMLIFrameElement;
+
+	onMount(() => onDesktopResourceContextChange((version) => {
+		resourceContextVersion = version;
+	}));
 
 	const postData = () => {
 		if (!frame?.contentWindow || payloadValue === undefined) {
@@ -19,8 +26,9 @@
 
 	$: {
 		const source = data.attr.source;
-		if (source !== sourceValue) {
+		if (source !== sourceValue || resolvedContextVersion !== resourceContextVersion) {
 			sourceValue = source;
+			resolvedContextVersion = resourceContextVersion;
 			const requestId = ++resolveRequest;
 
 			if (typeof source !== 'string' || !source) {

@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { values } from '../routes/+page.svelte';
+    import { values, getValueByPath } from '../routes/+page.svelte';
     export let data: { [key: string]: any };
-    $: value = +$values[data.attr.value] || 0
+    $: value = +getValueByPath($values, data.attr.value) || 0
     $: checked = value==1
     $: indeterminate = value==2
 </script>

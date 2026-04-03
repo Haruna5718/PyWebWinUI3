@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { values, formatComponentSource } from '../routes/+page.svelte';
+	import { values, formatComponentSource, getValueByPath } from '../routes/+page.svelte';
 	import Component from './Component.svelte';
 	export let data: { [key: string]: any };
 	type ComponentNode = Record<string, any>;
@@ -151,8 +151,8 @@
 		open = false;
 	}
 	$: {
-		const currentValue = $values[data.attr.value];
-		const tempValue = $values[optionValueKey];
+		const currentValue = getValueByPath($values, data.attr.value);
+		const tempValue = getValueByPath($values, optionValueKey);
 		const resolvedSelectedText = findSelectedTextFromChildren(data.child ?? [], currentValue);
 		const nextSelectedText = resolvedSelectedText || tempValue || '';
 

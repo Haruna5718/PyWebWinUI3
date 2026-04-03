@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { values } from '../routes/+page.svelte';
+	import { values, getValueByPath } from '../routes/+page.svelte';
 	export let data: { [key: string]: any };
 	let width,height;
 	$: min = +data?.attr?.min || 0;
 	$: max = +data?.attr?.max || 100;
 	$: step = +data?.attr?.step || 1;
 
-	$: value = Math.min(Math.max(+$values?.[data?.attr?.value] || 0, min), max);
+	$: value = Math.min(Math.max(+getValueByPath($values, data?.attr?.value) || 0, min), max);
 
 	$: percent = (1 - ((max - value) / (max - min)));
 	let click = false;

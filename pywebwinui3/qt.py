@@ -22,9 +22,8 @@ import win32gui_struct
 
 logger = logging.getLogger("pywebwinui3.qt")
 
-_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-_uxtheme = ctypes.WinDLL("uxtheme", use_last_error=True)
-_get_proc_address = _kernel32.GetProcAddress
+_uxtheme = ctypes.windll.uxtheme
+_get_proc_address = ctypes.windll.kernel32.GetProcAddress
 _get_proc_address.restype = ctypes.c_void_p
 _get_proc_address.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
@@ -41,25 +40,6 @@ _flush_menu_themes = _get_ordinal_proc(_uxtheme, 136, None, [])
 _allow_dark_mode_for_window = _get_ordinal_proc(_uxtheme, 133, wintypes.BOOL, [wintypes.HWND, wintypes.BOOL])
 
 
-def _merge_chromium_flags(*flags: str):
-	current = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "").strip()
-	parts = [part for part in current.split() if part]
-	for flag in flags:
-		if flag not in parts:
-			parts.append(flag)
-	os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join(parts)
-
-
-def _configure_webengine_gpu():
-	_merge_chromium_flags(
-		"--enable-gpu-rasterization",
-		"--enable-zero-copy",
-		"--enable-native-gpu-memory-buffers",
-		"--enable-oop-rasterization",
-		"--ignore-gpu-blocklist",
-	)
-
-
 def _apply_native_menu_theme(dark: bool, hwnd: int | None = None):
 	if _set_preferred_app_mode is not None:
 		_set_preferred_app_mode(2 if dark else 3)
@@ -69,47 +49,16 @@ def _apply_native_menu_theme(dark: bool, hwnd: int | None = None):
 		_flush_menu_themes()
 
 
-def _open_external_url(url: str | QUrl) -> bool:
-	raw = url if isinstance(url, str) else url.toString()
-	if not raw:
-		return False
-
-	parsed = QUrl(raw)
-	if parsed.isValid() and QDesktopServices.openUrl(parsed):
-		return True
-
-	if sys.platform.startswith("win"):
+def open_url(url: str | QUrl) -> bool:
+	if (raw := url if isinstance(url, str) else url.toString()):
+		if (parsed:=QUrl(raw)).isValid() and QDesktopServices.openUrl(parsed):
+			return True
 		try:
 			os.startfile(raw)
 			return True
 		except OSError:
 			logger.debug("Fallback shell open failed for %s", raw, exc_info=True)
-
-	fallback = QUrl.fromUserInput(raw)
-	return fallback.isValid() and QDesktopServices.openUrl(fallback)
-
-
-_ANCHOR_INTERCEPT_SCRIPT = """
-(() => {
-	if (window.__pywebwinui3_external_anchor_hook__) return;
-	window.__pywebwinui3_external_anchor_hook__ = true;
-	document.addEventListener('click', (event) => {
-		const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
-		if (!anchor) return;
-		const href = anchor.getAttribute('href') || '';
-		if (!href || href.startsWith('#')) return;
-		if (/^(about|data|file|qrc):/i.test(href)) return;
-		if (!/^(?:[a-z][a-z0-9+.-]*:|\\/\\/)/i.test(href)) return;
-		event.preventDefault();
-		event.stopPropagation();
-		if (window.desktop?.api?.openExternal) {
-			window.desktop.api.openExternal(href);
-			return;
-		}
-		window.open(href, anchor.getAttribute('target') || '_blank');
-	}, true);
-})();
-"""
+	return False
 
 class MARGINS(ctypes.Structure):
 	_fields_ = [
@@ -119,68 +68,80 @@ class MARGINS(ctypes.Structure):
 		("cyBottomHeight", ctypes.c_int),
 	]
 
-def _read_resize_border_thickness() -> int:
-	return max(
-		8,
+
+class MSG(ctypes.Structure):
+	_fields_ = [
+		("hwnd", wintypes.HWND),
+		("message", wintypes.UINT),
+		("wParam", wintypes.WPARAM),
+		("lParam", wintypes.LPARAM),
+		("time", wintypes.DWORD),
+		("pt", wintypes.POINT),
+	]
+
+def _read_resize_border_thickness():
+	return (
 		win32api.GetSystemMetrics(win32con.SM_CXSIZEFRAME)
-		+ win32api.GetSystemMetrics(getattr(win32con, "SM_CXPADDEDBORDER", 92)),
-	)
+		+ win32api.GetSystemMetrics(92)
+	) / 2
 
 class ExternalAwarePage(QWebEnginePage):
-	def acceptNavigationRequest(self, url, navigation_type, is_main_frame):
+	def _is_same_document_fragment(self, url: QUrl) -> bool:
+		current = self.url()
+		return (
+			bool(url.fragment())
+			and current.isValid()
+			and url.scheme() == current.scheme()
+			and url.host() == current.host()
+			and url.port() == current.port()
+			and url.path() == current.path()
+			and url.query() == current.query()
+		)
+
+	def acceptNavigationRequest(self, url, navigation_type, ismain_frame):
 		if (
-			is_main_frame
-			and navigation_type == QWebEnginePage.NavigationTypeLinkClicked
+			ismain_frame
+			and navigation_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
 			and url.scheme() not in {"about", "data", "file", "qrc"}
 		):
-			_open_external_url(url)
+			if self._is_same_document_fragment(url):
+				return super().acceptNavigationRequest(url, navigation_type, ismain_frame)
+			open_url(url)
 			return False
-		return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
+		return super().acceptNavigationRequest(url, navigation_type, ismain_frame)
 
 	def createWindow(self, _):
 		page = QWebEnginePage(self.profile(), self)
 
 		def open_and_cleanup(url):
-			_open_external_url(url)
+			open_url(url)
 			page.deleteLater()
 
 		page.urlChanged.connect(open_and_cleanup)
 		return page
 
-
 class FramelessWindow(QMainWindow):
 	closed = Signal()
-	page_loaded = Signal(bool)
-	WEB_MENU_BACK = 0x5001
-	WEB_MENU_FORWARD = 0x5002
-	WEB_MENU_RELOAD = 0x5003
-	WEB_MENU_UNDO = 0x5010
-	WEB_MENU_REDO = 0x5011
-	WEB_MENU_CUT = 0x5012
-	WEB_MENU_COPY = 0x5013
-	WEB_MENU_PASTE = 0x5014
-	WEB_MENU_SELECT_ALL = 0x5015
-	WINDOW_MENU_PIN = 0x5020
 
-	EDGE_MAP = {
-		"left": (Qt.LeftEdge, win32con.HTLEFT),
-		"right": (Qt.RightEdge, win32con.HTRIGHT),
-		"top": (Qt.TopEdge, win32con.HTTOP),
-		"bottom": (Qt.BottomEdge, win32con.HTBOTTOM),
-		"top-left": (Qt.TopEdge | Qt.LeftEdge, win32con.HTTOPLEFT),
-		"top-right": (Qt.TopEdge | Qt.RightEdge, win32con.HTTOPRIGHT),
-		"bottom-left": (Qt.BottomEdge | Qt.LeftEdge, win32con.HTBOTTOMLEFT),
-		"bottom-right": (Qt.BottomEdge | Qt.RightEdge, win32con.HTBOTTOMRIGHT),
-	}
+	EDGE_MAP = [
+		"left",
+		"right",
+		"top",
+		"bottom",
+		"top-left",
+		"top-right",
+		"bottom-left",
+		"bottom-right",
+	]
 	CURSOR_MAP = {
-		"left": Qt.SizeHorCursor,
-		"right": Qt.SizeHorCursor,
-		"top": Qt.SizeVerCursor,
-		"bottom": Qt.SizeVerCursor,
-		"top-left": Qt.SizeFDiagCursor,
-		"bottom-right": Qt.SizeFDiagCursor,
-		"top-right": Qt.SizeBDiagCursor,
-		"bottom-left": Qt.SizeBDiagCursor,
+		"left": Qt.CursorShape.SizeHorCursor,
+		"right": Qt.CursorShape.SizeHorCursor,
+		"top": Qt.CursorShape.SizeVerCursor,
+		"bottom": Qt.CursorShape.SizeVerCursor,
+		"top-left": Qt.CursorShape.SizeFDiagCursor,
+		"bottom-right": Qt.CursorShape.SizeFDiagCursor,
+		"top-right": Qt.CursorShape.SizeBDiagCursor,
+		"bottom-left": Qt.CursorShape.SizeBDiagCursor,
 	}
 
 	def __init__(self, api, page_path: Path, title: str, icon_path: Path | None, debug: bool = False):
@@ -191,19 +152,14 @@ class FramelessWindow(QMainWindow):
 		self._resize_edge_name: str | None = None
 		self._resize_origin: QPoint | None = None
 		self._resize_geometry: QRect | None = None
-		self._pending_resize_geometry: QRect | None = None
-		self._resize_commit_scheduled = False
 		self._active_resize_cursor = None
 		self._resize_border = _read_resize_border_thickness()
 		self._debug_tools_view: QWebEngineView | None = None
 		self._debug_tools_page: QWebEnginePage | None = None
 
-		self.setWindowFlag(Qt.FramelessWindowHint, True)
+		self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
 		self.setWindowTitle(title)
-		minimum_width, minimum_height = self.api._main.get_window_min_size_values()
-		self.setMinimumSize(minimum_width, minimum_height)
-		initial_width, initial_height = self.api._main.get_window_size_values()
-		self.resize(initial_width, initial_height)
+		self.resize(self.api.main.values.get("system_window_width"), self.api.main.values.get("system_window_height"))
 		self.setMouseTracking(True)
 
 		if icon_path and icon_path.exists():
@@ -214,21 +170,11 @@ class FramelessWindow(QMainWindow):
 		self._apply_window_background()
 
 		settings = self.page.settings()
-		settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-		settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
-		settings.setAttribute(QWebEngineSettings.JavascriptCanAccessClipboard, True)
-		for attribute_name in ("WebGLEnabled", "Accelerated2dCanvasEnabled"):
-			attribute = getattr(QWebEngineSettings, attribute_name, None)
-			if attribute is None and hasattr(QWebEngineSettings, "WebAttribute"):
-				attribute = getattr(QWebEngineSettings.WebAttribute, attribute_name, None)
-			if attribute is not None:
-				settings.setAttribute(attribute, True)
-		if debug:
-			developer_extras = getattr(QWebEngineSettings, "DeveloperExtrasEnabled", None)
-			if developer_extras is None and hasattr(QWebEngineSettings, "WebAttribute"):
-				developer_extras = getattr(QWebEngineSettings.WebAttribute, "DeveloperExtrasEnabled", None)
-			if developer_extras is not None:
-				settings.setAttribute(developer_extras, True)
+		settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+		settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+		settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
+		settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
+		settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
 
 		self.channel = QWebChannel(self.page)
 		self.channel.registerObject("backend", api)
@@ -237,11 +183,10 @@ class FramelessWindow(QMainWindow):
 		self.view.setPage(self.page)
 		self.setCentralWidget(self.view)
 		self.view.setMouseTracking(True)
-		self.view.setContextMenuPolicy(Qt.CustomContextMenu)
+		self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 		self.view.customContextMenuRequested.connect(self._show_context_menu)
 		self.page.loadFinished.connect(self._handle_load_finished)
 		QApplication.instance().installEventFilter(self)
-		self._sync_view_geometry()
 
 		if not self.page_path.is_file():
 			raise FileNotFoundError(f"Frontend entry not found: {self.page_path}")
@@ -262,9 +207,19 @@ class FramelessWindow(QMainWindow):
 
 	def resizeEvent(self, event):
 		super().resizeEvent(event)
-		self._sync_view_geometry()
-		self.view.update()
-		self.api.sync_window_size_from_window(self.width(), self.height())
+		self.api.main.values.set("system_window_width", self.width(), False)
+		self.api.main.values.set("system_window_height", self.height(), False)
+
+	def nativeEvent(self, event_type, message):
+		try:
+			msg = MSG.from_address(int(message))
+		except (TypeError, ValueError, OSError):
+			return super().nativeEvent(event_type, message)
+
+		if msg.message == win32con.WM_SETTINGCHANGE:
+			self.api.main.accent.refresh()
+
+		return super().nativeEvent(event_type, message)
 
 	def closeEvent(self, event):
 		app = QApplication.instance()
@@ -287,7 +242,7 @@ class FramelessWindow(QMainWindow):
 
 	def _start_native_move(self):
 		handle = self.windowHandle()
-		if handle is not None and hasattr(handle, "startSystemMove") and handle.startSystemMove():
+		if handle is not None and handle.startSystemMove():
 			return
 		win32gui.ReleaseCapture()
 		win32api.SendMessage(self._hwnd(), win32con.WM_NCLBUTTONDOWN, win32con.HTCAPTION, 0)
@@ -313,25 +268,30 @@ class FramelessWindow(QMainWindow):
 		ex_style |= win32con.WS_EX_APPWINDOW
 		win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, ex_style)
 
-		if hasattr(win32gui, "GetClassLong") and hasattr(win32gui, "SetClassLong"):
-			class_style = win32gui.GetClassLong(hwnd, win32con.GCL_STYLE)
-			win32gui.SetClassLong(hwnd, win32con.GCL_STYLE, class_style | getattr(win32con, "CS_DROPSHADOW", 0x00020000))
+		if sys.getwindowsversion().build >= 22000:
+			dark_mode = wintypes.BOOL(self._resolved_theme() == "dark")
+			ctypes.windll.dwmapi.DwmSetWindowAttribute(
+				hwnd,
+				20,
+				ctypes.byref(dark_mode),
+				ctypes.sizeof(dark_mode),
+			)
 
-		policy = ctypes.c_int(2)
-		ctypes.windll.dwmapi.DwmSetWindowAttribute(
-			hwnd,
-			3,
-			ctypes.byref(policy),
-			ctypes.sizeof(policy),
-		)
+			disable_transitions = wintypes.BOOL(True)
+			ctypes.windll.dwmapi.DwmSetWindowAttribute(
+				hwnd,
+				3,
+				ctypes.byref(disable_transitions),
+				ctypes.sizeof(disable_transitions),
+			)
 
-		corners = ctypes.c_int(2)
-		ctypes.windll.dwmapi.DwmSetWindowAttribute(
-			hwnd,
-			33,
-			ctypes.byref(corners),
-			ctypes.sizeof(corners),
-		)
+			corners = ctypes.c_int(2)
+			ctypes.windll.dwmapi.DwmSetWindowAttribute(
+				hwnd,
+				33,
+				ctypes.byref(corners),
+				ctypes.sizeof(corners),
+			)
 
 		margins = MARGINS(1, 1, 1, 1)
 		ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(margins))
@@ -356,37 +316,20 @@ class FramelessWindow(QMainWindow):
 		self._resize_border = _read_resize_border_thickness()
 
 	def _resolved_theme(self) -> str:
-		values = self.api._main.values
+		values = self.api.main.values
 		theme = values.get("system_theme") or "system"
 		if theme == "system":
 			theme = values.get("system_theme_resolved") or "dark"
 		return theme if theme in {"light", "dark"} else "dark"
 
-	def _background_color(self) -> QColor:
-		return QColor("#f3f3f3") if self._resolved_theme() == "light" else QColor("#202020")
-
 	def _apply_window_background(self):
-		dark = self._resolved_theme() == "dark"
-		if self._native_frame_ready:
-			_apply_native_menu_theme(dark, self._hwnd())
-		else:
-			_apply_native_menu_theme(dark)
-		color = self._background_color()
-		self.page.setBackgroundColor(color)
-		self.setStyleSheet(f"background-color: {color.name()};")
-		if hasattr(self, "view"):
-			self.view.setStyleSheet(f"background-color: {color.name()};")
+		self.page.setBackgroundColor(QColor("#f3f3f3"if self._resolved_theme() == "light" else "#202020"))
 
 	def _handle_load_finished(self, _ok: bool):
 		self._apply_window_background()
-		self.page.runJavaScript(_ANCHOR_INTERCEPT_SCRIPT)
-		self.page_loaded.emit(_ok)
 
 	def _sync_view_geometry(self):
-		rect = self.contentsRect()
-		if self.view.geometry() != rect:
-			self.view.setGeometry(rect)
-		self.view.updateGeometry()
+		return
 
 	def _show_context_menu(self, pos: QPoint):
 		request = self.view.lastContextMenuRequest()
@@ -395,14 +338,14 @@ class FramelessWindow(QMainWindow):
 			self._exec_native_menu(
 				self.view.mapToGlobal(pos),
 				[
-					(self.WEB_MENU_UNDO, "Undo", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanUndo), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Undo)),
-					(self.WEB_MENU_REDO, "Redo", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanRedo), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Redo)),
+					(0x5000, "Undo", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanUndo), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Undo)),
+					(0x5001, "Redo", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanRedo), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Redo)),
 					None,
-					(self.WEB_MENU_CUT, "Cut", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanCut), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Cut)),
-					(self.WEB_MENU_COPY, "Copy", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanCopy), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Copy)),
-					(self.WEB_MENU_PASTE, "Paste", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanPaste), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Paste)),
+					(0x5002, "Cut", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanCut), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Cut)),
+					(0x5013, "Copy", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanCopy), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Copy)),
+					(0x5014, "Paste", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanPaste), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Paste)),
 					None,
-					(self.WEB_MENU_SELECT_ALL, "Select All", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanSelectAll), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.SelectAll)),
+					(0x5015, "Select All", bool(edit_flags & QWebEngineContextMenuRequest.EditFlag.CanSelectAll), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.SelectAll)),
 				],
 			)
 			return
@@ -410,9 +353,9 @@ class FramelessWindow(QMainWindow):
 		self._exec_native_menu(
 			self.view.mapToGlobal(pos),
 			[
-				(self.WEB_MENU_BACK, "Back", self.page.action(QWebEnginePage.WebAction.Back).isEnabled(), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Back)),
-				(self.WEB_MENU_FORWARD, "Forward", self.page.action(QWebEnginePage.WebAction.Forward).isEnabled(), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Forward)),
-				(self.WEB_MENU_RELOAD, "Reload", True, False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Reload)),
+				(0x5010, "Back", self.page.action(QWebEnginePage.WebAction.Back).isEnabled(), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Back)),
+				(0x5011, "Forward", self.page.action(QWebEnginePage.WebAction.Forward).isEnabled(), False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Forward)),
+				(0x5012, "Reload", True, False, lambda: self.page.triggerAction(QWebEnginePage.WebAction.Reload)),
 			],
 		)
 
@@ -494,7 +437,7 @@ class FramelessWindow(QMainWindow):
 
 	def _is_effectively_maximized(self) -> bool:
 		state = self.windowState()
-		return bool(state & Qt.WindowMaximized) or self._is_native_maximized()
+		return bool(state & Qt.WindowState.WindowMaximized) or self._is_native_maximized()
 
 	def _edge_from_pos(self, pos: QPoint, size) -> str | None:
 		if self._is_effectively_maximized():
@@ -552,12 +495,14 @@ class FramelessWindow(QMainWindow):
 		self._resize_edge_name = edge_name
 		self._resize_origin = QPoint(global_pos)
 		self._resize_geometry = QRect(self.geometry())
+		self._set_resize_cursor(edge_name)
 		self.grabMouse()
 
 	def _apply_resize(self, global_pos: QPoint):
 		if self._resize_edge_name is None or self._resize_origin is None or self._resize_geometry is None:
 			return
 
+		self._set_resize_cursor(self._resize_edge_name)
 		dx = global_pos.x() - self._resize_origin.x()
 		dy = global_pos.y() - self._resize_origin.y()
 		geometry = QRect(self._resize_geometry)
@@ -577,27 +522,12 @@ class FramelessWindow(QMainWindow):
 			min_bottom = geometry.top() + minimum_height - 1
 			geometry.setBottom(max(geometry.bottom() + dy, min_bottom))
 
-		self._pending_resize_geometry = geometry
-		if self._resize_commit_scheduled:
-			return
-
-		self._resize_commit_scheduled = True
-		QTimer.singleShot(0, self._commit_pending_resize)
-
-	def _commit_pending_resize(self):
-		self._resize_commit_scheduled = False
-		geometry = self._pending_resize_geometry
-		self._pending_resize_geometry = None
-		if geometry is None or self.geometry() == geometry:
-			return
-
-		self.setGeometry(geometry)
+		if self.geometry() != geometry:
+			self.setGeometry(geometry)
 
 	def _end_resize(self):
 		if self._resize_edge_name is None:
 			return
-
-		self._commit_pending_resize()
 
 		self._resize_edge_name = None
 		self._resize_origin = None
@@ -605,7 +535,7 @@ class FramelessWindow(QMainWindow):
 		self.releaseMouse()
 		self._set_resize_cursor(None)
 
-	def eventFilter(self, watched, event):
+	def eventFilter(self, watched:QObject, event:QEvent):
 		if event.type() not in {
 			QEvent.Type.MouseButtonPress,
 			QEvent.Type.MouseButtonRelease,
@@ -629,7 +559,7 @@ class FramelessWindow(QMainWindow):
 
 		edge_name = self._edge_from_pos(local_pos, self.size())
 
-		if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.LeftButton and edge_name:
+		if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton and edge_name:
 			self._begin_resize(edge_name, global_pos)
 			event.accept()
 			return True
@@ -697,12 +627,12 @@ class FramelessWindow(QMainWindow):
 
 	@Slot()
 	def show_window_menu(self):
-		pinned = bool(self.api._main.values.get("system_pin"))
+		pinned = bool(self.api.main.values.get("system_pin"))
 		maximized = self._is_effectively_maximized()
 		self._exec_native_menu(
 			QCursor.pos(),
 			[
-				(self.WINDOW_MENU_PIN, "Pin", True, pinned, lambda: self.api._main.pin(not pinned)),
+				(0x5020, "Pin", True, pinned, lambda: self.api.main.pin(not pinned)),
 				(win32con.SC_MINIMIZE, "Minimize", True, False, self.minimize, win32con.HBMMENU_POPUP_MINIMIZE),
 				(
 					win32con.SC_RESTORE if maximized else win32con.SC_MAXIMIZE,
@@ -744,7 +674,7 @@ class FramelessWindow(QMainWindow):
 class WebviewAPI(QObject):
 	WINDOW_SIZE_KEYS = frozenset({"system_window_width", "system_window_height"})
 
-	flush_sync_requested = Signal()
+	dispatch_sync_requested = Signal(str, "QVariant")
 	close_requested = Signal()
 	minimize_requested = Signal()
 	set_on_top_requested = Signal(bool)
@@ -756,7 +686,7 @@ class WebviewAPI(QObject):
 
 	def __init__(self, main_window, title: str, icon: str | None):
 		super().__init__()
-		self._main = main_window
+		self.main = main_window
 		self._title = title
 		self._icon = icon
 
@@ -764,44 +694,33 @@ class WebviewAPI(QObject):
 		self._owns_app = False
 		self._window = None
 		self._frontend_ready = False
-		self._page_loaded = False
-		self._window_shown = False
 		self._setup_fired = False
-		self._flush_scheduled = False
 		self._sync_lock = threading.Lock()
 		self._pending_sync: dict[str, object] = {}
-		self._debug_mode = False
-
-		self.flush_sync_requested.connect(self._flush_pending_sync, Qt.ConnectionType.QueuedConnection)
+		self.dispatch_sync_requested.connect(self._dispatch_sync_value, Qt.ConnectionType.QueuedConnection)
 
 	def ensure_runtime(self, debug: bool = False):
 		if self._window is not None:
 			return
 
-		self._debug_mode = debug
-		_configure_webengine_gpu()
 		app = QApplication.instance()
 		if app is None:
-			if hasattr(Qt, "AA_UseDesktopOpenGL"):
-				QApplication.setAttribute(Qt.AA_UseDesktopOpenGL, True)
-			QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
+			QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseDesktopOpenGL, True)
+			QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
 			app = QApplication(sys.argv)
 			self._owns_app = True
 
 		self._app = app
-		resolved_theme = self._main.values.get("system_theme") or "system"
+		resolved_theme = self.main.values.get("system_theme") or "system"
 		if resolved_theme == "system":
-			resolved_theme = self._main.values.get("system_theme_resolved") or "dark"
+			resolved_theme = self.main.values.get("system_theme_resolved") or "dark"
 		_apply_native_menu_theme(resolved_theme == "dark")
 
-		icon_path = self._main.resolve_path(self._icon)
-		page_override = os.environ.get("PYWEBWINUI3_PAGE_OVERRIDE")
-		page_path = Path(page_override).resolve() if page_override else self._main.packagePath / "index.html"
-		title = self._main.values.get("system_title") or self._title
+		icon_path = self.main.resolve_path(self._icon)
+		title = self.main.values.get("system_title") or self._title
 
-		self._window = FramelessWindow(self, page_path, title, icon_path, debug=debug)
-		self._window.closed.connect(self._main.events.closed.set)
-		self._window.page_loaded.connect(self._on_page_loaded)
+		self._window = FramelessWindow(self, self.main.packagePath / "index.html", title, icon_path, debug=debug)
+		self._window.closed.connect(self.main.events.closed.set)
 		self.close_requested.connect(self._window.close_window)
 		self.minimize_requested.connect(self._window.minimize)
 		self.set_on_top_requested.connect(self._window.set_on_top)
@@ -811,14 +730,14 @@ class WebviewAPI(QObject):
 		self.toggle_maximize_requested.connect(self._window.toggle_maximize)
 		self.show_window_menu_requested.connect(self._window.show_window_menu)
 
-		self._main.sync_window_size(self._window.width(), self._window.height(), sync=False)
+		# self.main.sync_window_size(self._window.width(), self._window.height(), sync=False)
+		self.main.values.set("system_window_width", self._window.width(), False)
+		self.main.values.set("system_window_height", self._window.height(), False)
 
-		if self._main.values.get("system_pin"):
+		if self.main.values.get("system_pin"):
 			self._window.set_on_top(True)
 
-		if self._debug_mode and not self._window_shown:
-			self._window.show()
-			self._window_shown = True
+		self._window.show()
 
 		logger.debug("Window created")
 
@@ -838,51 +757,32 @@ class WebviewAPI(QObject):
 
 	def queue_sync_value(self, key: str, value):
 		if key in self.WINDOW_SIZE_KEYS:
-			width, height = self._main.sync_window_size(
-				value if key == "system_window_width" else self._main.values.get("system_window_width"),
-				value if key == "system_window_height" else self._main.values.get("system_window_height"),
+			width, height = self.main.sync_window_size(
+				value if key == "system_window_width" else self.main.values.get("system_window_width"),
+				value if key == "system_window_height" else self.main.values.get("system_window_height"),
 				False,
 			)
 
 			if self._window is not None:
 				self.resize_window_requested.emit(width, height)
 
-			self._queue_sync_patch(
-				{
-					"system_window_width": width,
-					"system_window_height": height,
-				}
-			)
+			self._dispatch_or_defer_sync("system_window_width", width)
+			self._dispatch_or_defer_sync("system_window_height", height)
 			return
 
-		self._queue_sync_patch({key: value})
+		self._dispatch_or_defer_sync(key, value)
 
-	def _queue_sync_patch(self, patch: dict[str, object]):
-		if not patch:
-			return
-
+	def _dispatch_or_defer_sync(self, key: str, value):
 		with self._sync_lock:
-			self._pending_sync.update(patch)
 			if not self._frontend_ready or self._window is None:
+				self._pending_sync[key] = value
 				return
-			if self._flush_scheduled:
-				return
-			self._flush_scheduled = True
 
-		self.flush_sync_requested.emit()
-
-	def sync_window_size_from_window(self, width: int, height: int):
-		width, height = self._main.sync_window_size(width, height, False)
-		self._queue_sync_patch(
-			{
-				"system_window_width": width,
-				"system_window_height": height,
-			}
-		)
+		self.dispatch_sync_requested.emit(key, value)
 
 	@Slot(result="QVariant")
 	def init(self):
-		return dict(self._main.values)
+		return dict(self.main.values)
 
 	@Slot()
 	def frontendReady(self):
@@ -890,81 +790,53 @@ class WebviewAPI(QObject):
 			return
 
 		self._frontend_ready = True
-		self._maybe_show_window()
 
 		with self._sync_lock:
-			should_flush = bool(self._pending_sync)
-			if should_flush:
-				self._flush_scheduled = True
+			pending_sync = tuple(self._pending_sync.items())
+			self._pending_sync.clear()
 
-		if should_flush:
-			self.flush_sync_requested.emit()
+		for key, value in pending_sync:
+			self.dispatch_sync_requested.emit(key, value)
 
 		if not self._setup_fired:
 			self._setup_fired = True
-			self._main.events._pywebviewready.set()
-
-	@Slot(bool)
-	def _on_page_loaded(self, ok: bool):
-		self._page_loaded = ok
-		self._maybe_show_window()
-
-	def _maybe_show_window(self):
-		if self._window is None or self._window_shown:
-			return
-		if self._debug_mode:
-			self._window.show()
-			self._window_shown = True
-			return
-		if not self._page_loaded or not self._frontend_ready:
-			return
-
-		self._window.show()
-		self._window_shown = True
+			self.main.events.windowReady.set()
 
 	@Slot(str, "QVariant")
 	def syncValue(self, key: str, value):
 		if key in self.WINDOW_SIZE_KEYS:
-			width, height = self._main.sync_window_size(
-				value if key == "system_window_width" else self._main.values.get("system_window_width"),
-				value if key == "system_window_height" else self._main.values.get("system_window_height"),
+			width, height = self.main.sync_window_size(
+				value if key == "system_window_width" else self.main.values.get("system_window_width"),
+				value if key == "system_window_height" else self.main.values.get("system_window_height"),
 				False,
 			)
 			self.resize_window_requested.emit(width, height)
-			self._queue_sync_patch(
-				{
-					"system_window_width": width,
-					"system_window_height": height,
-				}
-			)
+			self._dispatch_or_defer_sync("system_window_width", width)
+			self._dispatch_or_defer_sync("system_window_height", height)
 			return
 
-		self._main.syncValue(key, value)
+		self.main.syncValue(key, value)
 
 	@Slot("QVariantMap")
 	def syncValues(self, values):
-		width = values.get("system_window_width", self._main.values.get("system_window_width"))
-		height = values.get("system_window_height", self._main.values.get("system_window_height"))
+		width = values.get("system_window_width", self.main.values.get("system_window_width"))
+		height = values.get("system_window_height", self.main.values.get("system_window_height"))
 		has_window_size_update = any(key in self.WINDOW_SIZE_KEYS for key in values)
 
 		for key, value in values.items():
 			if key in self.WINDOW_SIZE_KEYS:
 				continue
-			self._main.syncValue(key, value)
+			self.main.syncValue(key, value)
 
 		if has_window_size_update:
-			resolved_width, resolved_height = self._main.sync_window_size(width, height, False)
+			resolved_width, resolved_height = self.main.sync_window_size(width, height, False)
 			self.resize_window_requested.emit(resolved_width, resolved_height)
-			self._queue_sync_patch(
-				{
-					"system_window_width": resolved_width,
-					"system_window_height": resolved_height,
-				}
-			)
+			self._dispatch_or_defer_sync("system_window_width", resolved_width)
+			self._dispatch_or_defer_sync("system_window_height", resolved_height)
 
 	@Slot(bool)
 	def pin(self, state: bool):
-		self._main.pin(state)
+		self.main.pin(state)
 
 	@Slot()
 	def minimize(self):
@@ -992,30 +864,24 @@ class WebviewAPI(QObject):
 
 	@Slot(str)
 	def openExternal(self, url: str):
-		_open_external_url(url)
+		open_url(url)
 
 	@Slot(str, result=str)
 	def resolveResource(self, value: str):
-		resolved = self._main.resolve_resource_url(value)
+		resolved = self.main.resolve_resource_url(value)
 		return "" if resolved is None else str(resolved)
 
-	@Slot()
-	def _flush_pending_sync(self):
+	@Slot(str, "QVariant")
+	def _dispatch_sync_value(self, key: str, value):
 		if self._window is None:
+			with self._sync_lock:
+				self._pending_sync[key] = value
 			return
 
-		with self._sync_lock:
-			patch = dict(self._pending_sync)
-			self._pending_sync.clear()
-			self._flush_scheduled = False
-
-		if not patch:
-			return
-
-		if "system_title" in patch:
-			self._window.setWindowTitle(str(patch["system_title"] or self._title))
-		if "system_theme" in patch or "system_theme_resolved" in patch:
+		if key == "system_title":
+			self._window.setWindowTitle(str(value or self._title))
+		if key in {"system_theme", "system_theme_resolved"}:
 			self._window._apply_window_background()
 
-		script = f"window.applyBackendPatch({json.dumps(patch, ensure_ascii=False)})"
+		script = f"window.syncValue({json.dumps(key, ensure_ascii=False)}, {json.dumps(value, ensure_ascii=False)}, false)"
 		self._window.page.runJavaScript(script)
