@@ -3,7 +3,53 @@
 	export let data: { [key: string]: any };
 	let ispasswordShow = false
 	let padding:number
+
+	function parseBooleanAttr(value:any, defaultValue=true){
+		if (value === undefined || value === null || value === "") return defaultValue;
+		if (typeof value === "boolean") return value;
+		const normalized = String(value).trim().toLowerCase();
+		if (["false", "0", "no", "off"].includes(normalized)) return false;
+		if (["true", "1", "yes", "on"].includes(normalized)) return true;
+		return defaultValue;
+	}
+
+	function parseNumberAttr(value:any){
+		const number = Number(value);
+		return Number.isFinite(number) ? number : null;
+	}
+
+	$: min = parseNumberAttr(data?.attr?.min);
+	$: max = parseNumberAttr(data?.attr?.max);
+	$: step = parseNumberAttr(data?.attr?.step) ?? 1;
 	$: value = getValueByPath($values, data.attr.value);
+	$: showInputButtons = parseBooleanAttr(data?.attr?.button, true);
+
+	function clampNumber(value:number){
+		let next = Number.isFinite(value) ? value : 0;
+		if (min !== null) next = Math.max(next, min);
+		if (max !== null) next = Math.min(next, max);
+		return next;
+	}
+
+	function syncInput(raw:string){
+		if(data.attr.type=="number"){
+			const number = Number(raw);
+			if (!Number.isFinite(number)) return;
+			window.syncValue(data.attr.value, clampNumber(number));
+			return;
+		}
+		window.syncValue(data.attr.value, raw)
+	}
+
+	function commitNumber(raw:string){
+		if(data.attr.type!="number") return;
+		const number = Number(raw);
+		window.syncValue(data.attr.value, clampNumber(number));
+	}
+
+	function adjustNumber(delta:number){
+		window.syncValue(data.attr.value, clampNumber(Number(value) + delta));
+	}
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
 	margin: {data.attr.margin ?? 0};
@@ -13,19 +59,22 @@
 	<input
 		type={data.attr.type=="password"?(ispasswordShow?"text":"password"):data.attr.type}
 		placeholder={data.text}
-		on:input={(e)=>{window.syncValue(data.attr.value, data.attr.type=="number"?Number(e.currentTarget.value):e.currentTarget.value)}}
+		on:input={(e)=>syncInput(e.currentTarget.value)}
+		on:change={(e)=>commitNumber(e.currentTarget.value)}
+		on:blur={(e)=>commitNumber(e.currentTarget.value)}
 		min={data.attr.min}
 		max={data.attr.max}
+		step={data.attr.step}
 		value={value}
 		style="padding-right: {(padding??10)-2}px;"
 	/>
-	{#if data.attr.type=="number"}
+	{#if data.attr.type=="number" && showInputButtons}
 		<span class="buttons" bind:clientWidth={padding}>
-			<button on:click={()=>window.syncValue(data.attr.value, Number(value)+1)}></button>
-			<button on:click={()=>window.syncValue(data.attr.value, Number(value)-1)}></button>
+			<button on:click={()=>adjustNumber(step)}></button>
+			<button on:click={()=>adjustNumber(-step)}></button>
 		</span>
 	{/if}
-	{#if data.attr.type=="password"}
+	{#if data.attr.type=="password" && showInputButtons}
 		<span class="buttons" bind:clientWidth={padding}>
 			<button on:click={()=>ispasswordShow=!ispasswordShow}>{ispasswordShow?"":""}</button>
 		</span>

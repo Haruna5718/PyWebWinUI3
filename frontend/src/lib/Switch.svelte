@@ -21,7 +21,13 @@
 			{data.attr.off??'OFF'}
 		</label>
 	</span>
-	<input id="switch.{data.attr.value}" type="checkbox" checked={checked} on:input={()=>{window.syncValue(data.attr.value, !checked)}}/>
+	<input
+		id="switch.{data.attr.value}"
+		type="checkbox"
+		bind:checked={checked}
+		class:checked={checked}
+		on:input|preventDefault={() => window.syncValue(data.attr.value, !Boolean(getValueByPath($values, data.attr.value)))}
+	/>
 </span>
 <style lang="scss">
 	.main{
@@ -74,7 +80,7 @@
 					width: 22px;
 				}
 			}
-			&:checked{
+			&.checked{
 				background-color: var(--AccentFillColorDefaultBrush);
 				box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
 				&::before{
