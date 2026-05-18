@@ -593,35 +593,35 @@
 			<span class="icon"></span>
 		</button>
 		<section>
-			{#key sortedPageKeys}
-				{#each sortedPageKeys as key}
-					{@const val = $values["system_pages"][key]}
-					{@const badgeState = format(val['attr']?.['state']??"")}
-					{@const badgeText = format(val["attr"]?.["badge"]??"")??""}
-					<button class:settingButton={val["attr"]?.["icon"]==""} class:Select={hash==key} on:click={()=>location.hash=key}>
-						<span class="icon">{val["attr"]?.["icon"] ?? ""}</span>
-						<span>{val["attr"]?.["name"] ?? key}</span>
-					{#if badgeState !== "" && badgeState != null}
-						<span class="badge l{badgeState}">{badgeText}</span>
-					{/if}
-					</button>
-				{/each}
-			{/key}
+			{#each sortedPageKeys as key}
+				{@const val = $values["system_pages"][key]}
+				{@const badgeText = format(val["attr"]?.["badge"]??"")??""}
+				<button class:settingButton={val["attr"]?.["icon"]==""} class:Select={hash==key} on:click={()=>location.hash=key}>
+					<span class="icon">{val["attr"]?.["icon"] ?? ""}</span>
+					<span>{val["attr"]?.["name"] ?? key}</span>
+					{#key val['attr']?.['state']}
+						{@const badgeState = format(val['attr']?.['state']??"")}
+						{#if badgeState !== "" && badgeState != null}
+							<span class="badge l{badgeState}">{badgeText}</span>
+						{/if}
+					{/key}
+				</button>
+			{/each}
 		</section>
 		{#if settingsPage}
-			{#key settingsPage}
-				{@const path = settingsPage["attr"]?.["path"] ?? "settings"}
-				{@const icon = settingsPage["attr"]?.["icon"] ?? ""}
-				{@const settingsBadgeState = format(settingsPage["attr"]?.["state"]??"")??""}
-				{@const settingsBadgeText = format(settingsPage["attr"]?.["badge"]??"")??""}
-				<button class:settingButton={icon==""} class:Select={hash==path} on:click={()=>location.hash=path}>
-					<span class="icon">{icon}</span>
-					<span>{settingsPage["attr"]?.["name"] ?? "Settings"}</span>
+			{@const path = settingsPage["attr"]?.["path"] ?? "settings"}
+			{@const icon = settingsPage["attr"]?.["icon"] ?? ""}
+			{@const settingsBadgeText = format(settingsPage["attr"]?.["badge"]??"")??""}
+			<button class:settingButton={icon==""} class:Select={hash==path} on:click={()=>location.hash=path}>
+				<span class="icon">{icon}</span>
+				<span>{settingsPage["attr"]?.["name"] ?? "Settings"}</span>
+				{#key settingsPage["attr"]?.["state"]}
+					{@const settingsBadgeState = format(settingsPage["attr"]?.["state"]??"")??""}
 					{#if settingsBadgeState !== "" && settingsBadgeState != null}
 						<span class="badge l{settingsBadgeState}">{settingsBadgeText}</span>
 					{/if}
-				</button>
-			{/key}
+				{/key}
+			</button>
 		{/if}
 	</nav>
 	{#key hash}
