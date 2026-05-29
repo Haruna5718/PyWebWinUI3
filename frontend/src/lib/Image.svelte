@@ -1,24 +1,16 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { getDesktopResourceContextVersion, onDesktopResourceContextChange, resolveDesktopResource } from './desktop';
+	import { resolveDesktopResource } from './desktop';
 
 	export let data: { [key: string]: any };
 
 	let resolvedSource = '';
 	let resolveRequest = 0;
 	let sourceValue: unknown;
-	let resourceContextVersion = getDesktopResourceContextVersion();
-	let resolvedContextVersion = -1;
-
-	onMount(() => onDesktopResourceContextChange((version) => {
-		resourceContextVersion = version;
-	}));
 
 	$: {
 		const source = data.attr.source;
-		if (source !== sourceValue || resolvedContextVersion !== resourceContextVersion) {
+		if (source !== sourceValue) {
 			sourceValue = source;
-			resolvedContextVersion = resourceContextVersion;
 			const requestId = ++resolveRequest;
 
 			if (typeof source !== 'string' || !source) {

@@ -3,8 +3,8 @@
 PyWebWinUI3 is a Windows desktop UI framework that combines:
 
 - a Python backend
-- a frameless PySide6 / Qt shell
-- a Svelte frontend rendered inside Qt WebEngine
+- a pywebview host window
+- a Svelte frontend rendered inside Edge WebView2
 - an XAML-like page format for declaring UI
 
 The goal is to make desktop apps feel like WinUI3-style apps while still being driven from Python.
@@ -16,10 +16,10 @@ PyWebWinUI3 lets you:
 - declare pages in XAML-like markup
 - bind controls to Python values
 - react to value changes and lifecycle events from Python
-- use a static bundled frontend without running a local web server
-- keep a modern Windows-style shell with theme and accent synchronization
+- serve a bundled frontend from the Python runtime
+- keep a Windows-style shell with theme and accent synchronization
 
-At runtime, Python owns the application state, Qt hosts the window and WebEngine, and the Svelte app renders the page tree received from Python.
+At runtime, Python owns the application state, pywebview hosts the window, and the Svelte app renders the page tree loaded from the bundled frontend.
 
 ## Platform
 
@@ -27,8 +27,8 @@ PyWebWinUI3 is currently aimed at Windows.
 
 Runtime dependencies:
 
-- `PySide6`
-- `pywin32`
+- `pywebview`
+- `hPyT`
 
 ## Installation
 
@@ -46,7 +46,7 @@ app = MainWindow("PyWebWinUI3")
 
 app.addSettings("Settings.xaml")
 app.addPage("Dashboard.xaml")
-app.addPage("test.xaml")
+app.addPage("Test.xaml")
 
 app.values["test_input"] = "Hello, world"
 app.values["test_switch"] = False
@@ -86,7 +86,7 @@ Important methods:
 
 - `addPage(...)`
 - `addSettings(...)`
-- `start(debug=False, min_width=900, min_height=600)`
+- `start(debug=False, hidden=False, on_top=None, width=None, height=None, min_width=900, min_height=600)`
 - `notice(level, title, description, item=None)`
 - `pin(state)`
 - `syncValue(key, value)`
@@ -110,14 +110,11 @@ Built-in system values include keys such as:
 - `system_title`
 - `system_icon`
 - `system_theme`
-- `system_theme_resolved`
 - `system_accent`
 - `system_pages`
 - `system_settings`
 - `system_nofication`
 - `system_pin`
-- `system_window_width`
-- `system_window_height`
 
 ### Events
 
@@ -125,7 +122,6 @@ Built-in system values include keys such as:
 
 - `@app.onValueChange(key)`
 - `@app.onAccentColorChange()`
-- `@app.onThemeChange()`
 - `@app.onSetup()`
 - `@app.onExit()`
 
@@ -209,21 +205,20 @@ External URLs such as `https://...` and `file://...` are passed through as-is.
 
 ## Window / Shell Behavior
 
-The desktop shell is implemented in Qt and provides:
+The desktop shell is implemented with pywebview and provides:
 
-- frameless custom window chrome
+- a hidden-title-bar host window
 - theme and accent synchronization with Windows
 - always-on-top pinning
-- WebChannel bridge between Python and the frontend
-- external link handling through the desktop layer
+- a pywebview API bridge between Python and the frontend
+- direct bundled frontend hosting from `pywebwinui3/web/`
 
 ## Project Structure
 
 ```text
 PyWebWinUI3/
 ├─ pywebwinui3/
-│  ├─ core.py        # public Python API
-│  ├─ qt.py          # Qt shell and bridge
+│  ├─ core.py        # public API, app state, pywebview host
 │  ├─ util.py        # XAML loader, sync dict, accent watcher
 │  ├─ event.py       # event system
 │  ├─ type.py        # status and theme resource constants

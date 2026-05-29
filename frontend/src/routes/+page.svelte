@@ -8,14 +8,11 @@
 		"system_title": null,
 		"system_icon": null,
 		"system_theme": "system",
-		"system_theme_resolved": "dark",
 		"system_accent": ["#fff","#fff","#fff","#888","#000","#000","#000"],
 		"system_pin": false,
 		"system_pages": null,
 		"system_settings": null,
-		"system_nofication": [],
-		"system_window_width": 900,
-		"system_window_height": 600
+		"system_nofication": []
 	});
 
 	const hasValue = (dict: Record<string, any>, key: string) =>
@@ -394,10 +391,9 @@
 	import { get as getStoreValue } from 'svelte/store';
 
 	import Component from "../lib/Component.svelte";
-	import { getDesktopApi, getDesktopResourceContextVersion, installDesktopWindowBindings, onDesktopResourceContextChange, queueDesktopSync, resolveDesktopResource } from '../lib/desktop';
+	import { getDesktopApi, queueDesktopSync, resolveDesktopResource } from '../lib/desktop';
 
 	const desktopApi = getDesktopApi();
-	const WINDOW_SIZE_KEYS = new Set(['system_window_width', 'system_window_height']);
 
 	const NOTICE_ICONS = ["", "", "", ""];
 
@@ -406,18 +402,15 @@
 	let resolvedSystemIcon = '';
 	let systemIconResolveRequest = 0;
 	let systemIconSource: unknown;
-	let systemIconResourceContextVersion = getDesktopResourceContextVersion();
-	let systemIconResolvedContextVersion = -1;
 	let sortedPageKeys: string[] = [];
 	let accentStyle = '';
-	let currentThemeClass = 'dark';
+	let currentThemeClass = 'system';
 	let settingsPage: Record<string, any> | null = null;
 
 	$: {
 		const source = $values["system_icon"];
-		if (source !== systemIconSource || systemIconResolvedContextVersion !== systemIconResourceContextVersion) {
+		if (source !== systemIconSource) {
 			systemIconSource = source;
-			systemIconResolvedContextVersion = systemIconResourceContextVersion;
 			const requestId = ++systemIconResolveRequest;
 
 			if (typeof source !== 'string' || !source) {
@@ -448,9 +441,9 @@
 			+ `--AccentFillColorDarkTertiaryBrush: ${accentPalette[4]}CC;`;
 	}
 
-	$: currentThemeClass = $values["system_theme"] === "system"
-		? ($values["system_theme_resolved"] ?? "dark")
-		: ($values["system_theme"] ?? "dark");
+	$: currentThemeClass = $values["system_theme"] === "light" || $values["system_theme"] === "dark"
+		? $values["system_theme"]
+		: "system";
 
 	$: settingsPage = $values["system_settings"] ?? null;
 
@@ -466,62 +459,16 @@
 		});
 	};
 
-	let pendingWindowSizePatch: Record<string, any> | null = null;
-	let pendingWindowSizeFrame = 0;
-
-	const flushPendingWindowSizePatch = () => {
-		if (!pendingWindowSizePatch) {
-			pendingWindowSizeFrame = 0;
-			return;
-		}
-
-		const patch = pendingWindowSizePatch;
-		pendingWindowSizePatch = null;
-		pendingWindowSizeFrame = 0;
-		applyPatch(patch);
-	};
-
-	const queueWindowSizePatch = (patch: Record<string, any>) => {
-		pendingWindowSizePatch = {
-			...(pendingWindowSizePatch ?? {}),
-			...patch
-		};
-
-		if (pendingWindowSizeFrame) {
-			return;
-		}
-
-		pendingWindowSizeFrame = window.requestAnimationFrame(() => {
-			flushPendingWindowSizePatch();
-		});
-	};
-
 	const withDesktopApi = (callback: (api: Awaited<typeof desktopApi>) => void) => {
 		void desktopApi.then(callback);
 	};
 
 	onMount(() => {
-		const cleanupWindowBindings = installDesktopWindowBindings();
-		const cleanupResourceContext = onDesktopResourceContextChange((version) => {
-			systemIconResourceContextVersion = version;
-		});
-
 		const init = async () => {
 			window.applyBackendPatch = (patch: Record<string, any>) => {
 				const nextPatch = patch ?? {};
-				const keys = Object.keys(nextPatch);
-				if (keys.length === 0) {
+				if (Object.keys(nextPatch).length === 0) {
 					return;
-				}
-
-				if (keys.every((key) => WINDOW_SIZE_KEYS.has(key))) {
-					queueWindowSizePatch(nextPatch);
-					return;
-				}
-
-				if (pendingWindowSizeFrame) {
-					window.cancelAnimationFrame(pendingWindowSizeFrame);
-					flushPendingWindowSizePatch();
 				}
 
 				applyPatch(nextPatch);
@@ -549,11 +496,6 @@
 		void init();
 
 		return () => {
-			if (pendingWindowSizeFrame) {
-				window.cancelAnimationFrame(pendingWindowSizeFrame);
-			}
-			cleanupWindowBindings();
-			cleanupResourceContext();
 		};
 	});
 

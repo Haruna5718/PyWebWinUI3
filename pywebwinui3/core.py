@@ -1,24 +1,38 @@
 from __future__ import annotations
 
-import inspect
+import importlib
+import json
 import logging
+import sys
+import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-from .event import Event
+import webview
+from hPyT import title_bar
+
+from .event import Event, PathEvent
 from .type import Status
 from .util import AccentColorWatcher, SyncDict, loadPage
 
 logger = logging.getLogger("pywebwinui3")
-
-from .qt import WebviewAPI
+core_logger = logging.getLogger("pywebwinui3.core")
 
 DEFAULT_WINDOW_WIDTH = 900
 DEFAULT_WINDOW_HEIGHT = 600
 DEFAULT_WINDOW_MIN_WIDTH = 100
 DEFAULT_WINDOW_MIN_HEIGHT = 100
-ABSOLUTE_WINDOW_MIN_WIDTH = 1
-ABSOLUTE_WINDOW_MIN_HEIGHT = 1
+
+
+class _JsApi:
+	def _init(self, main:MainWindow):
+		self.init = main._init_payload
+		self.frontendReady = main._frontend_ready_callback
+		self.syncValue = main.syncValue
+		self.syncValues = main._sync_values
+		self.pin = main.pin
+		self.minimize = main.minimize
+		self.destroy = main.destroy
+		self.resolveResource = main.resolveResource
 
 
 class WindowEvents:
@@ -26,78 +40,86 @@ class WindowEvents:
 		self.windowReady = Event()
 		self.closed = Event()
 		self.accentColorChange = Event()
-		self.themeChange = Event()
-		self.valueChange = Event()
+		self.valueChange = PathEvent()
 
 
 class MainWindow:
 	def __init__(self, title: str, icon: str | None = None):
-		self.rootPath = Path(inspect.currentframe().f_back.f_code.co_filename).parent.resolve()
+		self.rootPath = Path(sys._getframe(1).f_code.co_filename).parent.resolve()
 		self.packagePath = Path(__file__).parent.resolve() / "web"
-		self._title = title
-		self._icon = icon
 
 		self.accent = AccentColorWatcher()
 		self.events = WindowEvents()
-		self.api = WebviewAPI(self, self._title, self._icon)
+		self.api = _JsApi()
+		self._title = title
+		self._frontend_ready = False
+		self._setup_fired = False
+		self._minimum_width = DEFAULT_WINDOW_MIN_WIDTH
+		self._minimum_height = DEFAULT_WINDOW_MIN_HEIGHT
+		self._sync_lock = threading.Lock()
+		self._pending_sync: dict[str, object] = {}
 
 		self.values = SyncDict(
 			{
 				"system_title": title,
 				"system_icon": icon,
 				"system_theme": "system",
-				"system_theme_resolved": self.accent.theme,
 				"system_accent": self.accent.palette,
 				"system_pages": None,
 				"system_settings": None,
 				"system_nofication": [],
 				"system_pin": False,
-				"system_window_width": 900,
-				"system_window_height": 600,
 			}
 		)
-		self.values.sync = self.api.queue_sync_value
+		self.values.sync = self.queue_sync_value
+
+		self._window = webview.create_window(
+			self._current_title(),
+			self._entry_path().as_uri(),
+			js_api=self.api,
+			background_color="#202020",
+			text_select=True,
+			width=DEFAULT_WINDOW_WIDTH,
+			height=DEFAULT_WINDOW_HEIGHT,
+			min_size=(self._minimum_width, self._minimum_height),
+			on_top=bool(self.values.get("system_pin", False)),
+		)
+		self.show = self._window.show
+		self.restore = self._window.restore
+		self.hide = self._window.hide
+		self.destroy = self._window.destroy
+		self.minimize = self._window.minimize
+		self.api._init(self)
+		self._window.events.before_show += self._before_show
+		self._window.events.closed += self._on_closed
+
+		core_logger.debug("Window created")
 
 		self.events.accentColorChange = self.accent.event
-		self.events.themeChange = self.accent.theme_event
 		self.events.valueChange = self.values.event
 		self.events.accentColorChange += lambda palette: self.values.set("system_accent", palette)
-		self.events.themeChange += lambda theme: self.values.set("system_theme_resolved", theme)
+
+	def _event_decorator(self, event: Event | PathEvent, value=None):
+		def decorator(func):
+			if value is None:
+				event.__iadd__(func)
+			else:
+				event.__iadd__((value, func))
+			return func
+
+		return decorator
 
 	def onValueChange(self, key):
-		def decorator(func):
-			self.events.valueChange += (key, func)
-			return func
-
-		return decorator
+		return self._event_decorator(self.events.valueChange, key)
 
 	def onAccentColorChange(self):
-		def decorator(func):
-			self.events.accentColorChange += func
-			return func
-
-		return decorator
-
-	def onThemeChange(self):
-		def decorator(func):
-			self.events.themeChange += func
-			return func
-
-		return decorator
+		return self._event_decorator(self.events.accentColorChange)
 
 	def onSetup(self):
-		def decorator(func):
-			self.events.windowReady += func
-			return func
-
-		return decorator
+		return self._event_decorator(self.events.windowReady)
 
 	def onExit(self):
-		def decorator(func):
-			self.events.closed += func
-			return func
-
-		return decorator
+		return self._event_decorator(self.events.closed)
 
 	def notice(self, level: Status, title: str, description: str, item: dict | None = None):
 		self.values["system_nofication"] = [
@@ -105,14 +127,10 @@ class MainWindow:
 			[level, title, description, item],
 		]
 
-	def init(self) -> dict:
-		return dict(self.values)
-
 	def pin(self, state: bool):
 		state = bool(state)
-		self.values.set("system_pin", state, self.api is not None)
-		if self.api is not None:
-			self.api.set_on_top(state)
+		self.values.set("system_pin", state)
+		self.set_on_top(state)
 		return state
 
 	def syncValue(self, key, value):
@@ -151,26 +169,153 @@ class MainWindow:
 
 		return root_candidate.resolve()
 
-	def resolve_resource_url(self, value):
+	def _current_title(self):
+		return self.values.get("system_title", self._title)
+
+	def _entry_path(self) -> Path:
+		entry = (Path(self.packagePath) / "index.html").resolve()
+		if not entry.is_file():
+			raise FileNotFoundError(f"Frontend entry not found: {entry}")
+		return entry
+
+	def _before_show(self):
+		try:
+			hwnd = self._window.native.Handle.ToInt64()
+			title_bar.hide(hwnd)
+		except Exception:
+			core_logger.debug("Failed to hide title bar", exc_info=True)
+
+	def _on_closed(self):
+		self.events.closed.set()
+
+	def _dispatch_or_defer_sync(self, key: str, value):
+		with self._sync_lock:
+			if not self._frontend_ready:
+				self._pending_sync[key] = value
+				return
+
+		self._dispatch_sync_value(key, value)
+
+	def _dispatch_sync_value(self, key: str, value):
+		if key == "system_title":
+			try:
+				self._window.title = str(value or self._title)
+			except Exception:
+				core_logger.debug("Failed to update window title", exc_info=True)
+
+		script = f"window.syncValue({json.dumps(key, ensure_ascii=False)}, {json.dumps(value, ensure_ascii=False)}, false)"
+		try:
+			self._window.evaluate_js(script)
+		except Exception:
+			with self._sync_lock:
+				self._pending_sync[key] = value
+			core_logger.debug("Failed to sync value %s", key, exc_info=True)
+
+	def queue_sync_value(self, key: str, value):
+		self._dispatch_or_defer_sync(key, value)
+
+	def _init_payload(self):
+		return dict(self.values)
+
+	def _sync_values(self, values: dict[str, object]):
+		if not isinstance(values, dict):
+			return
+
+		for key, value in values.items():
+			self.syncValue(key, value)
+
+	def _frontend_ready_callback(self):
+		if self._frontend_ready:
+			return
+
+		self._frontend_ready = True
+
+		with self._sync_lock:
+			pending_sync = tuple(self._pending_sync.items())
+			self._pending_sync.clear()
+
+		for key, value in pending_sync:
+			self._dispatch_sync_value(key, value)
+
+		if not self._setup_fired:
+			self._setup_fired = True
+			self.events.windowReady.set()
+
+	def set_on_top(self, state: bool):
+		state = bool(state)
+		try:
+			native = getattr(self._window, "native", None)
+			if native is None:
+				self._window.on_top = state
+				return
+
+			action_type = getattr(importlib.import_module("System"), "Action")
+
+			def _apply():
+				self._window.on_top = state
+
+			if native.InvokeRequired:
+				native.BeginInvoke(action_type(_apply))
+			else:
+				_apply()
+		except Exception:
+			core_logger.debug("Failed to set window on top", exc_info=True)
+
+	def get_window_size(self) -> tuple[int, int]:
+		width = int(getattr(self._window, "initial_width", DEFAULT_WINDOW_WIDTH))
+		height = int(getattr(self._window, "initial_height", DEFAULT_WINDOW_HEIGHT))
+
+		try:
+			if self._window.events.shown.is_set():
+				width = int(self._window.width)
+				height = int(self._window.height)
+		except Exception:
+			core_logger.debug("Failed to read window size", exc_info=True)
+
+		return width, height
+
+	def resolveResource(self, value: str):
 		if not isinstance(value, (str, Path)):
-			return value
+			return ""
 
 		raw_value = str(value).strip()
 		if not raw_value:
-			return value
+			return ""
 
 		lowered = raw_value.lower()
-		if lowered.startswith(("http://", "https://", "file://", "data:", "qrc://", "qrc:", "about:")):
+		if lowered.startswith(("http://", "https://", "file://", "data:", "about:")):
 			return raw_value
 
 		resolved = self.resolve_path(raw_value)
-		if resolved is None or not resolved.exists():
+		if resolved is None or not resolved.exists() or not resolved.is_file():
 			return raw_value
 
-		return resolved.as_uri()
+		return resolved.resolve().as_uri()
 
-	def start(self, debug: bool = False, min_width=900, min_height=600):
-		# if self.api is not None and getattr(self.api, "_window", None) is not None:
-		self.api.set_window_minimum_size(min_width, min_height)
+	def start(
+		self,
+		debug: bool = False,
+		*,
+		hidden: bool = False,
+		on_top: bool | None = None,
+		width: int | None = None,
+		height: int | None = None,
+		min_width=900,
+		min_height=600,
+	):
 		self.accent.start()
-		self.api.start(debug=debug)
+		self._minimum_width = max(1, int(min_width))
+		self._minimum_height = max(1, int(min_height))
+		self._window.min_size = (self._minimum_width, self._minimum_height)
+		self._window.hidden = bool(hidden)
+
+		if width is not None and height is not None:
+			width = max(self._minimum_width, int(width))
+			height = max(self._minimum_height, int(height))
+			self._window.initial_width = width
+			self._window.initial_height = height
+
+		if on_top is not None:
+			self._window.on_top = bool(on_top)
+
+		webview.start(debug=debug, gui="edgechromium")

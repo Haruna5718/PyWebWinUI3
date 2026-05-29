@@ -340,7 +340,21 @@ $dark: (
 
 main.light{
 	@include apply-theme($light);
+	color-scheme: light;
 }
 main.dark{
 	@include apply-theme($dark);
+	color-scheme: dark;
+}
+@media (prefers-color-scheme: light){
+	main.system{
+		@include apply-theme($light);
+		color-scheme: light;
+	}
+}
+@media (prefers-color-scheme: dark){
+	main.system{
+		@include apply-theme($dark);
+		color-scheme: dark;
+	}
 }

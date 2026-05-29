@@ -1,11 +1,4 @@
-<script lang="ts">
-	let { children } = $props();
-</script>
-
-<svelte:head>
-	<link rel="icon" href="data:,">
-	<style>
-		@import url(./Pretendard/Variable-dynamic-subset.min.css);
+import{c as b,a as i,f}from"../chunks/CW0wlPPy.js";import{F as c,G as g,a as m,H as v,h as s,I as y,J as h,K as l,L as d,M as u,e as _,v as w,N as x}from"../chunks/CZPLFskb.js";import{B as k}from"../chunks/B-XLOWlt.js";function F(t,n,...o){var a=new k(t);c(()=>{const r=n()??null;a.ensure(r,r&&(e=>r(e,...o)))},g)}function S(t,n){let o=null,a=s;var r;if(s){o=_;for(var e=y(document.head);e!==null&&(e.nodeType!==h||e.data!==t);)e=l(e);if(e===null)d(!1);else{var p=l(e);e.remove(),u(p)}}s||(r=document.head.appendChild(m()));try{c(()=>n(r),v)}finally{a&&(d(!0),u(o))}}const C=!0,N=Object.freeze(Object.defineProperty({__proto__:null,prerender:C},Symbol.toStringTag,{value:"Module"}));var E=f(`<link rel="icon" href="data:,"/> <style>@import url(./Pretendard/Variable-dynamic-subset.min.css);
 		@font-face {
 			font-family: 'Segoe Fluent Icons';
 			src: url(./SegoeFluentIcons.ttf);
@@ -58,8 +51,4 @@
 		}
 		body{
 			background-color: var(--SolidBackgroundFillColorBaseBrush);
-		}
-	</style>
-</svelte:head>
-
-{@render children()}
+		}</style>`,1);function O(t,n){var o=b();S("12qhfyh",r=>{var e=E();x(2),i(r,e)});var a=w(o);F(a,()=>n.children),i(t,o)}export{O as component,N as universal};

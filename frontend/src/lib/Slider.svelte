@@ -23,7 +23,17 @@
 				</div>
 			{/if}
 		</span>
-		<input type="range" min={min} max={max} step={step} value={value} on:mousedown={()=>{click=true}} on:mouseup={()=>{click=false}} on:input={(e)=>window.syncValue(data.attr.value, e.currentTarget.value)}/>
+		<input
+			type="range"
+			min={min}
+			max={max}
+			step={step}
+			value={value}
+			on:pointerdown={() => { click = true; }}
+			on:pointerup={() => { click = false; }}
+			on:pointerleave={() => { click = false; }}
+			on:input={(e)=>window.syncValue(data.attr.value, e.currentTarget.value)}
+		/>
 	</span>
 </span>
 <style lang="scss">
@@ -56,6 +66,7 @@
 			height: 4px;
 			border-radius: 2px;
 			span{
+				transition: all 0.2s ease, width 0s;
 				border-radius: 2px;
 				position: absolute;
 				inset: 0;
@@ -83,24 +94,25 @@
 				&::-webkit-slider-runnable-track {
 					cursor: pointer;
 				}
-				&::-webkit-slider-thumb {
-					cursor: pointer;
-					appearance: none;
-					transition: all 0.2s ease-in-out;
-					border: 5px solid var(--ControlSolidFillColorDefaultBrush);
-					box-shadow: 0 1px 0 1px var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlSolidFillColorDefaultBrush);
-					background-color: var(--AccentFillColorDefaultBrush);
-					width: 18px;
-					height: 18px;
-					border-radius: 10px;
-					&:hover{
-						border-width: 3px;
-					}
-					&:active{
-						border-width: 6px;
-					}
-				}
 			}
 		}
+	}
+
+	.container .main input[type="range"]::-webkit-slider-thumb{
+		cursor: pointer;
+		appearance: none;
+		transition: all 0.1s ease-in-out;
+		border: 5px solid var(--ControlSolidFillColorDefaultBrush);
+		box-shadow: 0 1px 0 1px var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlSolidFillColorDefaultBrush);
+		background-color: var(--AccentFillColorDefaultBrush);
+		width: 18px;
+		height: 18px;
+		border-radius: 10px;
+	}
+	.container .main input[type="range"]::-webkit-slider-thumb:hover{
+		border-width: 3px;
+	}
+	.container .main input[type="range"]::-webkit-slider-thumb:active{
+		border-width: 6px;
 	}
 </style>

@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 import fnmatch
 import logging
-import traceback
 from typing import Any, Callable
 
 logger = logging.getLogger("pywebwinui3.eventmanager")
@@ -13,31 +12,31 @@ class Event:
 		self.items: list[Callable[..., Any]] = []
 
 	def set(self, *args: Any):
-		listeners = tuple(self.items)
-		if not listeners:
-			return
-
-		for func in listeners:
+		for func in tuple(self.items):
 			try:
 				func(*args)
 			except Exception:
-				logger.error(traceback.format_exc())
+				logger.exception("Event callback failed")
+
+	def _add(self, item: Callable[..., Any]):
+		self.items.append(item)
+		return self
+
+	def _remove(self, item: Callable[..., Any]):
+		self.items.remove(item)
+		return self
 
 	def __add__(self, item: Callable[..., Any]):
-		self.items.append(item)
-		return self
+		return self._add(item)
 
 	def __sub__(self, item: Callable[..., Any]):
-		self.items.remove(item)
-		return self
+		return self._remove(item)
 
 	def __iadd__(self, item: Callable[..., Any]):
-		self.items.append(item)
-		return self
+		return self._add(item)
 
 	def __isub__(self, item: Callable[..., Any]):
-		self.items.remove(item)
-		return self
+		return self._remove(item)
 
 	def __len__(self) -> int:
 		return len(self.items)
@@ -78,7 +77,7 @@ class PathEvent:
 				if self._compile_pattern(key).match(target):
 					matched_events.append(event)
 			except Exception:
-				logger.error(traceback.format_exc())
+				logger.exception("Pattern match failed")
 
 		result = tuple(matched_events)
 		self._pattern_cache[target] = result
@@ -93,55 +92,42 @@ class PathEvent:
 			try:
 				exact_event.set(target, *args)
 			except Exception:
-				logger.error(traceback.format_exc())
+				logger.exception("Exact path callback failed")
 
 		for event in self._get_pattern_events(target):
 			try:
 				event.set(target, *args)
 			except Exception:
-				logger.error(traceback.format_exc())
+				logger.exception("Pattern path callback failed")
+
+	def _modify(self, item: list, remove: bool):
+		target, callback = item[0], item[1]
+		bucket = self._bucket(target)
+		event = bucket.setdefault(target, Event())
+
+		if remove:
+			event -= callback
+		else:
+			event += callback
+
+		if self._is_pattern(target):
+			if not remove:
+				self._compiled_patterns.setdefault(target, self._compile_pattern(target))
+			self._clear_pattern_cache()
+
+		return self
 
 	def __add__(self, item: list):
-		target, callback = item[0], item[1]
-		bucket = self._bucket(target)
-		bucket.setdefault(target, Event()).__iadd__(callback)
-
-		if self._is_pattern(target):
-			self._compiled_patterns.setdefault(target, self._compile_pattern(target))
-			self._clear_pattern_cache()
-
-		return self
+		return self._modify(item, False)
 
 	def __sub__(self, item: list):
-		target, callback = item[0], item[1]
-		bucket = self._bucket(target)
-		bucket.setdefault(target, Event()).__isub__(callback)
-
-		if self._is_pattern(target):
-			self._clear_pattern_cache()
-
-		return self
+		return self._modify(item, True)
 
 	def __iadd__(self, item: list):
-		target, callback = item[0], item[1]
-		bucket = self._bucket(target)
-		bucket.setdefault(target, Event()).__iadd__(callback)
-
-		if self._is_pattern(target):
-			self._compiled_patterns.setdefault(target, self._compile_pattern(target))
-			self._clear_pattern_cache()
-
-		return self
+		return self._modify(item, False)
 
 	def __isub__(self, item: list):
-		target, callback = item[0], item[1]
-		bucket = self._bucket(target)
-		bucket.setdefault(target, Event()).__isub__(callback)
-
-		if self._is_pattern(target):
-			self._clear_pattern_cache()
-
-		return self
+		return self._modify(item, True)
 
 	def __len__(self) -> int:
 		return len(self.exact_items) + len(self.pattern_items)

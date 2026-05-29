@@ -1,17 +1,9 @@
 <script lang="ts">
-	import { openLink } from './desktop';
-
 	export let data: { [key: string]: any };
-
-	const click = (event: MouseEvent) => {
-		if (!data.attr.url) return;
-		event.preventDefault();
-		openLink(data.attr.url, `_${data.attr.target ?? 'blank'}`);
-	};
 </script>
 
 {#if data.attr.url}
-	<a class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} target="_{data.attr.target??'blank'}" href={data.attr.url} on:click={click} style="
+	<a class="text {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} target={`_${data.attr.target ?? 'blank'}`} href={data.attr.url} rel="noopener noreferrer" style="
 			margin: {data.attr.margin ?? 0};
 			{data.attr.color?`color: ${data.attr.color};`:''}
 			{data.attr.size?`font-size: ${data.attr.size};`:''}

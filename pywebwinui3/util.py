@@ -1,4 +1,5 @@
 import xml.etree.ElementTree
+from functools import lru_cache
 from typing import Any, Callable
 import winreg
 import logging
@@ -37,6 +38,7 @@ class SyncDict(dict):
 		self.sync = sync
 
 	@staticmethod
+	@lru_cache(maxsize=512)
 	def _parsePath(key:str):
 		if not isinstance(key, str) or "[" not in key:
 			return None
@@ -159,9 +161,7 @@ class SyncDict(dict):
 class AccentColorWatcher:
 	def __init__(self, event:Event=None):
 		self.event = event or Event()
-		self.theme_event = Event()
 		self.palette = self.getSystemAccentColor()
-		self.theme = self.getSystemTheme()
 
 	@staticmethod
 	def getSystemAccentColor():
@@ -172,22 +172,10 @@ class AccentColorWatcher:
 			return DEFAULT_ACCENT_PALETTE.copy()
 		return [f"#{p[i]:02x}{p[i+1]:02x}{p[i+2]:02x}" for i in range(0,len(p),4)]
 
-	@staticmethod
-	def getSystemTheme():
-		try:
-			with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
-				t, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-		except OSError:
-			return "dark"
-		return "light" if t else "dark"
-
 	def refresh(self):
 		if self.palette != (color := self.getSystemAccentColor()):
 			self.palette = color
 			self.event.set(self.palette)
-		if self.theme != (theme := self.getSystemTheme()):
-			self.theme = theme
-			self.theme_event.set(self.theme)
 
 	def start(self):
 		self.refresh()
