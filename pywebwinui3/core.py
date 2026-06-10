@@ -3,9 +3,15 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import mimetypes
+import os
+import re
 import sys
 import threading
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote, urlparse, urlunparse
 
 import webview
 from hPyT import title_bar
@@ -21,6 +27,63 @@ DEFAULT_WINDOW_WIDTH = 900
 DEFAULT_WINDOW_HEIGHT = 600
 DEFAULT_WINDOW_MIN_WIDTH = 100
 DEFAULT_WINDOW_MIN_HEIGHT = 100
+
+
+def _default_ui_origin_host(title: str) -> str:
+	slug = re.sub(r"[^a-z0-9]+", "-", str(title).casefold()).strip("-")
+	if not slug:
+		slug = "app"
+	slug = re.sub(r"-{2,}", "-", slug)[:48].strip("-")
+	if not slug:
+		slug = "app"
+	return f"{slug}.local"
+
+
+class _UiHttpServer(ThreadingHTTPServer):
+	daemon_threads = True
+	allow_reuse_address = True
+
+	def __init__(self, server_address, request_handler_class, main: "MainWindow"):
+		super().__init__(server_address, request_handler_class)
+		self.main = main
+
+
+class _UiRequestHandler(BaseHTTPRequestHandler):
+	server: _UiHttpServer
+
+	def do_GET(self):
+		try:
+			path = self.server.main._resolve_server_path(urlparse(self.path).path)
+			if path is None or not path.is_file():
+				self._send_error("Not found.", HTTPStatus.NOT_FOUND)
+				return
+
+			body = path.read_bytes()
+			content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+			self.send_response(HTTPStatus.OK)
+			self._send_common_headers(content_type)
+			self.send_header("Content-Length", str(len(body)))
+			self.end_headers()
+			self.wfile.write(body)
+		except Exception:
+			core_logger.debug("Failed to serve UI asset", exc_info=True)
+			self._send_error("Failed to serve UI asset.", HTTPStatus.INTERNAL_SERVER_ERROR)
+
+	def log_message(self, format, *args):
+		return
+
+	def _send_error(self, message: str, status: HTTPStatus):
+		body = message.encode("utf-8")
+		self.send_response(status)
+		self._send_common_headers("text/plain; charset=utf-8")
+		self.send_header("Content-Length", str(len(body)))
+		self.end_headers()
+		self.wfile.write(body)
+
+	def _send_common_headers(self, content_type: str):
+		self.send_header("Content-Type", content_type)
+		self.send_header("Cache-Control", "no-store")
+		self.send_header("Permissions-Policy", "display-capture=*")
 
 
 class _JsApi:
@@ -58,6 +121,15 @@ class MainWindow:
 		self._minimum_height = DEFAULT_WINDOW_MIN_HEIGHT
 		self._sync_lock = threading.Lock()
 		self._pending_sync: dict[str, object] = {}
+		self._ui_server: _UiHttpServer | None = None
+		self._ui_server_thread: threading.Thread | None = None
+		self._ui_origin = ""
+		self._ui_bind_host = "127.0.0.1"
+		self._ui_origin_host = getattr(self, "ui_origin_host", _default_ui_origin_host(title))
+		self._resource_roots: list[tuple[str, Path]] = [
+			("root", self.rootPath),
+			("package", self.packagePath),
+		]
 
 		self.values = SyncDict(
 			{
@@ -72,10 +144,12 @@ class MainWindow:
 			}
 		)
 		self.values.sync = self.queue_sync_value
+		self._start_ui_server()
+		self._configure_webview2_origin_identity()
 
 		self._window = webview.create_window(
 			self._current_title(),
-			self._entry_path().as_uri(),
+			f"{self._ui_origin}/index.html",
 			js_api=self.api,
 			background_color="#202020",
 			text_select=True,
@@ -178,6 +252,85 @@ class MainWindow:
 			raise FileNotFoundError(f"Frontend entry not found: {entry}")
 		return entry
 
+	def _start_ui_server(self):
+		self._ui_server = _UiHttpServer((self._ui_bind_host, 0), _UiRequestHandler, self)
+		self._ui_origin = f"http://{self._ui_origin_host}:{self._ui_server.server_port}"
+		self._ui_server_thread = threading.Thread(target=self._ui_server.serve_forever, daemon=True)
+		self._ui_server_thread.start()
+
+	def _configure_webview2_origin_identity(self):
+		if self._ui_origin_host == self._ui_bind_host:
+			return
+
+		parsed = urlparse(self._ui_origin)
+		if not parsed.scheme or parsed.port is None:
+			return
+
+		required_args = [
+			f'--host-resolver-rules="MAP {self._ui_origin_host} {self._ui_bind_host}"',
+			f"--unsafely-treat-insecure-origin-as-secure={parsed.scheme}://{self._ui_origin_host}:{parsed.port}",
+		]
+		existing = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "").strip()
+		missing = [arg for arg in required_args if arg not in existing]
+		if missing:
+			os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = " ".join(
+				[value for value in [existing, *missing] if value]
+			).strip()
+
+	def _stop_ui_server(self):
+		if self._ui_server is None:
+			return
+		try:
+			self._ui_server.shutdown()
+			self._ui_server.server_close()
+		except Exception:
+			core_logger.debug("Failed to stop UI server", exc_info=True)
+		finally:
+			self._ui_server = None
+			self._ui_server_thread = None
+
+	def _resolve_server_path(self, raw_path: str) -> Path | None:
+		path = unquote(raw_path or "/")
+		if path in {"", "/"}:
+			return self._entry_path()
+
+		for name, base_path in self._resource_roots:
+			if name == "package":
+				continue
+
+			prefix = f"/__{name}__/"
+			if not path.startswith(prefix):
+				continue
+
+			relative = path[len(prefix) :]
+			candidate = (base_path / relative).resolve()
+			try:
+				candidate.relative_to(base_path)
+			except ValueError:
+				return None
+			return candidate
+
+		candidate = (self.packagePath / path.lstrip("/")).resolve()
+		try:
+			candidate.relative_to(self.packagePath)
+		except ValueError:
+			return None
+		return candidate
+
+	def _resource_url(self, path: Path) -> str:
+		path = path.resolve()
+		for name, base_path in self._resource_roots:
+			try:
+				relative = path.relative_to(base_path)
+			except ValueError:
+				continue
+
+			if name == "package":
+				return f"{self._ui_origin}/{relative.as_posix()}"
+			return f"{self._ui_origin}/__{name}__/{relative.as_posix()}"
+
+		raise ValueError(f"Path is outside of registered resource roots: {path}")
+
 	def _before_show(self):
 		try:
 			hwnd = self._window.native.Handle.ToInt64()
@@ -186,6 +339,7 @@ class MainWindow:
 			core_logger.debug("Failed to hide title bar", exc_info=True)
 
 	def _on_closed(self):
+		self._stop_ui_server()
 		self.events.closed.set()
 
 	def _dispatch_or_defer_sync(self, key: str, value):
@@ -286,11 +440,27 @@ class MainWindow:
 		if lowered.startswith(("http://", "https://", "file://", "data:", "about:")):
 			return raw_value
 
-		resolved = self.resolve_path(raw_value)
+		parsed = urlparse(raw_value)
+		path_value = parsed.path or raw_value
+		resolved = self.resolve_path(path_value)
 		if resolved is None or not resolved.exists() or not resolved.is_file():
 			return raw_value
 
-		return resolved.resolve().as_uri()
+		resource_url = self._resource_url(resolved)
+		if not parsed.scheme and (parsed.query or parsed.fragment):
+			resource_parts = urlparse(resource_url)
+			resource_url = urlunparse(
+				(
+					resource_parts.scheme,
+					resource_parts.netloc,
+					resource_parts.path,
+					resource_parts.params,
+					parsed.query,
+					parsed.fragment,
+				)
+			)
+
+		return resource_url
 
 	def start(
 		self,
