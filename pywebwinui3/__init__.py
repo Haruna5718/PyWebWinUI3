@@ -1,3 +1,3 @@
 __all__ = ["core", "event", "util", "type"]
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'

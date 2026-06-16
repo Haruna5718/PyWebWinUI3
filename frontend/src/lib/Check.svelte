@@ -1,9 +1,21 @@
 <script lang="ts">
     import { values, getValueByPath } from '../routes/+page.svelte';
     export let data: { [key: string]: any };
-    $: value = +getValueByPath($values, data.attr.value) || 0
-    $: checked = value==1
-    $: indeterminate = value==2
+    let input: HTMLInputElement;
+
+    $: value = +getValueByPath($values, data.attr.value) || 0;
+    $: isThreeState = data.attr.type == "three";
+    $: checked = value == 1;
+    $: indeterminate = isThreeState && value == 2;
+    $: if (input) {
+        input.indeterminate = indeterminate;
+    }
+
+    function toggle() {
+        const maxState = isThreeState ? 3 : 2;
+        const normalizedValue = ((value % maxState) + maxState) % maxState;
+        window.syncValue(data.attr.value, (normalizedValue + 1) % maxState);
+    }
 </script>
 <span class:disabled={String(data.attr.disabled??"")=="true"} style="
     margin: {data.attr.margin ?? 0};
@@ -16,9 +28,12 @@
         </label>
     {/if}
     <input id="check.{data.attr.value}" type="checkbox"
-        bind:checked={checked}
-        bind:indeterminate={indeterminate}
-        on:input|preventDefault={()=>window.syncValue(data.attr.value, (value+1)%(data.attr.type=="three"?3:2))}
+        bind:this={input}
+        checked={checked}
+        class:checked
+        class:indeterminate
+        aria-checked={indeterminate ? "mixed" : checked ? "true" : "false"}
+        on:click|preventDefault={toggle}
     />
 </span>
 <style lang="scss">
@@ -41,7 +56,7 @@
             &:active{
                 background-color: var(--ControlAltFillColorQuarternaryBrush);
             }
-            &:checked,&:indeterminate{
+            &.checked,&.indeterminate{
                 background-color: var(--AccentFillColorDefaultBrush);
                 box-shadow: none;
                 &::before{
@@ -52,10 +67,10 @@
                     text-align: center;
                     color: var(--TextOnAccentFillColorPrimaryBrush);
                 }
-                &:checked::before{
+                &.checked::before{
                     content: '';
                 }
-                &:indeterminate::before{
+                &.indeterminate::before{
                     content: '';
                 }
                 &:hover{

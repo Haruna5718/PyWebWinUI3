@@ -1,13 +1,56 @@
+import ctypes
+import logging
+import threading
+import winreg
 import xml.etree.ElementTree
 from functools import lru_cache
 from typing import Any, Callable
-import winreg
-import logging
 import re
+from ctypes import wintypes
 
 from .event import PathEvent, Event
 
 logger = logging.getLogger('pywebwinui3.util')
+
+ACCENT_REGISTRY_PATH = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent"
+REG_NOTIFY_CHANGE_LAST_SET = 0x00000004
+WAIT_OBJECT_0 = 0x00000000
+WAIT_FAILED = 0xFFFFFFFF
+INFINITE = 0xFFFFFFFF
+
+_advapi32 = ctypes.WinDLL("Advapi32", use_last_error=True)
+_kernel32 = ctypes.WinDLL("Kernel32", use_last_error=True)
+
+_advapi32.RegNotifyChangeKeyValue.argtypes = [
+	wintypes.HKEY,
+	wintypes.BOOL,
+	wintypes.DWORD,
+	wintypes.HANDLE,
+	wintypes.BOOL,
+]
+_advapi32.RegNotifyChangeKeyValue.restype = wintypes.LONG
+
+_kernel32.CreateEventW.argtypes = [
+	wintypes.LPVOID,
+	wintypes.BOOL,
+	wintypes.BOOL,
+	wintypes.LPCWSTR,
+]
+_kernel32.CreateEventW.restype = wintypes.HANDLE
+
+_kernel32.SetEvent.argtypes = [wintypes.HANDLE]
+_kernel32.SetEvent.restype = wintypes.BOOL
+
+_kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+_kernel32.CloseHandle.restype = wintypes.BOOL
+
+_kernel32.WaitForMultipleObjects.argtypes = [
+	wintypes.DWORD,
+	ctypes.POINTER(wintypes.HANDLE),
+	wintypes.BOOL,
+	wintypes.DWORD,
+]
+_kernel32.WaitForMultipleObjects.restype = wintypes.DWORD
 
 DEFAULT_ACCENT_PALETTE = [
 	"#99ebff",
@@ -162,15 +205,71 @@ class AccentColorWatcher:
 	def __init__(self, event:Event=None):
 		self.event = event or Event()
 		self.palette = self.getSystemAccentColor()
+		self._watch_thread: threading.Thread | None = None
+		self._stop_event_handle: int | None = None
 
 	@staticmethod
 	def getSystemAccentColor():
 		try:
-			with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent") as key:
+			with winreg.OpenKey(winreg.HKEY_CURRENT_USER, ACCENT_REGISTRY_PATH) as key:
 				p, _ = winreg.QueryValueEx(key, "AccentPalette")
 		except OSError:
 			return DEFAULT_ACCENT_PALETTE.copy()
 		return [f"#{p[i]:02x}{p[i+1]:02x}{p[i+2]:02x}" for i in range(0,len(p),4)]
+
+	@staticmethod
+	def _create_event_handle():
+		handle = _kernel32.CreateEventW(None, False, False, None)
+		if not handle:
+			raise ctypes.WinError(ctypes.get_last_error())
+		return int(handle)
+
+	@staticmethod
+	def _close_handle(handle: int | None):
+		if handle:
+			_kernel32.CloseHandle(handle)
+
+	def _watch_loop(self, stop_event_handle: int):
+		change_event_handle = None
+		try:
+			with winreg.OpenKey(
+				winreg.HKEY_CURRENT_USER,
+				ACCENT_REGISTRY_PATH,
+				0,
+				winreg.KEY_READ | winreg.KEY_NOTIFY,
+			) as key:
+				change_event_handle = self._create_event_handle()
+				wait_handles = (wintypes.HANDLE * 2)(change_event_handle, stop_event_handle)
+				key_handle = wintypes.HKEY(int(key.handle))
+				while True:
+					result = _advapi32.RegNotifyChangeKeyValue(
+						key_handle,
+						False,
+						REG_NOTIFY_CHANGE_LAST_SET,
+						wintypes.HANDLE(change_event_handle),
+						True,
+					)
+					if result != 0:
+						logger.debug("Accent watcher registry notification failed: %s", result)
+						break
+
+					wait_result = _kernel32.WaitForMultipleObjects(2, wait_handles, False, INFINITE)
+					if wait_result == WAIT_OBJECT_0:
+						self.refresh()
+						continue
+					if wait_result == WAIT_OBJECT_0 + 1:
+						break
+
+					logger.debug("Accent watcher wait failed: %s", wait_result)
+					break
+		except Exception:
+			logger.debug("Accent watcher stopped unexpectedly", exc_info=True)
+		finally:
+			self._close_handle(change_event_handle)
+			self._close_handle(stop_event_handle)
+			if self._stop_event_handle == stop_event_handle:
+				self._stop_event_handle = None
+			self._watch_thread = None
 
 	def refresh(self):
 		if self.palette != (color := self.getSystemAccentColor()):
@@ -179,4 +278,24 @@ class AccentColorWatcher:
 
 	def start(self):
 		self.refresh()
+		if self._watch_thread and self._watch_thread.is_alive():
+			return
+
+		try:
+			self._stop_event_handle = self._create_event_handle()
+		except Exception:
+			logger.debug("Failed to start accent watcher", exc_info=True)
+			return
+
+		self._watch_thread = threading.Thread(
+			target=self._watch_loop,
+			args=(self._stop_event_handle,),
+			daemon=True,
+			name="AccentColorWatcher",
+		)
+		self._watch_thread.start()
 		logger.debug("Accent watcher initialized")
+
+	def stop(self):
+		if self._stop_event_handle:
+			_kernel32.SetEvent(wintypes.HANDLE(self._stop_event_handle))

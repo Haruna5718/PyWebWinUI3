@@ -289,6 +289,14 @@ class MainWindow:
 			self._ui_server = None
 			self._ui_server_thread = None
 
+	def _resolve_path_under(self, base_path: Path, relative_path: str) -> Path | None:
+		candidate = (base_path / relative_path).resolve()
+		try:
+			candidate.relative_to(base_path)
+		except ValueError:
+			return None
+		return candidate
+
 	def _resolve_server_path(self, raw_path: str) -> Path | None:
 		path = unquote(raw_path or "/")
 		if path in {"", "/"}:
@@ -299,23 +307,10 @@ class MainWindow:
 				continue
 
 			prefix = f"/__{name}__/"
-			if not path.startswith(prefix):
-				continue
+			if path.startswith(prefix):
+				return self._resolve_path_under(base_path, path[len(prefix) :])
 
-			relative = path[len(prefix) :]
-			candidate = (base_path / relative).resolve()
-			try:
-				candidate.relative_to(base_path)
-			except ValueError:
-				return None
-			return candidate
-
-		candidate = (self.packagePath / path.lstrip("/")).resolve()
-		try:
-			candidate.relative_to(self.packagePath)
-		except ValueError:
-			return None
-		return candidate
+		return self._resolve_path_under(self.packagePath, path.lstrip("/"))
 
 	def _resource_url(self, path: Path) -> str:
 		path = path.resolve()
@@ -339,6 +334,7 @@ class MainWindow:
 			core_logger.debug("Failed to hide title bar", exc_info=True)
 
 	def _on_closed(self):
+		self.accent.stop()
 		self._stop_ui_server()
 		self.events.closed.set()
 
