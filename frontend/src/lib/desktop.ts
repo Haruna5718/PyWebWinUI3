@@ -9,6 +9,9 @@ const waitForDesktopApi = async (): Promise<DesktopApi> => {
 			syncValues: () => {},
 			resolveResource: async (source) => source,
 			pin: () => {},
+			startWindowDrag: () => {},
+			toggleWindowMaximize: () => {},
+			showWindowSystemMenu: () => {},
 			minimize: () => {},
 			destroy: () => {},
 			openExternal: () => {},
@@ -46,6 +49,21 @@ const waitForDesktopApi = async (): Promise<DesktopApi> => {
 				pin: (state) => {
 					if (typeof api.pin === 'function') {
 						void api.pin(state);
+					}
+				},
+				startWindowDrag: () => {
+					if (typeof api.startWindowDrag === 'function') {
+						void api.startWindowDrag();
+					}
+				},
+				toggleWindowMaximize: () => {
+					if (typeof api.toggleWindowMaximize === 'function') {
+						void api.toggleWindowMaximize();
+					}
+				},
+				showWindowSystemMenu: () => {
+					if (typeof api.showWindowSystemMenu === 'function') {
+						void api.showWindowSystemMenu();
 					}
 				},
 				minimize: () => {

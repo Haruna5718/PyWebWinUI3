@@ -5,7 +5,8 @@
     gap: {data.attr.gap ?? 'inherit'};
     padding: {data.attr.padding ?? 0};
     margin: {data.attr.margin ?? 0};
-    height: {data.attr.width ?? 'auto'};
+    width: {data.attr.width ?? 'auto'};
+    height: {data.attr.height ?? 'auto'};
     align-items: {data.attr.align?.replace('right','flex-end')?.replace('left','flex-start') ?? 'inherit'};
 ">
     <slot />

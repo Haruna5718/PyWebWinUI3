@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import importlib
 import json
 import logging
@@ -12,6 +13,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse, urlunparse
+from ctypes import wintypes
 
 import webview
 from hPyT import title_bar
@@ -27,6 +29,93 @@ DEFAULT_WINDOW_WIDTH = 900
 DEFAULT_WINDOW_HEIGHT = 600
 DEFAULT_WINDOW_MIN_WIDTH = 100
 DEFAULT_WINDOW_MIN_HEIGHT = 100
+
+
+class _Point(ctypes.Structure):
+	_fields_ = [
+		("x", ctypes.c_long),
+		("y", ctypes.c_long),
+	]
+
+_user32 = ctypes.WinDLL("user32", use_last_error=True)
+_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+_uxtheme = ctypes.WinDLL("uxtheme", use_last_error=True)
+
+_kernel32.GetProcAddress.argtypes = [wintypes.HMODULE, wintypes.LPCSTR]
+_kernel32.GetProcAddress.restype = ctypes.c_void_p
+_user32.ReleaseCapture.argtypes = []
+_user32.ReleaseCapture.restype = ctypes.c_bool
+_user32.GetCursorPos.argtypes = [ctypes.POINTER(_Point)]
+_user32.GetCursorPos.restype = ctypes.c_bool
+_user32.GetSystemMenu.argtypes = [ctypes.c_void_p, ctypes.c_bool]
+_user32.GetSystemMenu.restype = ctypes.c_void_p
+_user32.IsZoomed.argtypes = [ctypes.c_void_p]
+_user32.IsZoomed.restype = ctypes.c_bool
+_user32.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_ssize_t]
+_user32.PostMessageW.restype = ctypes.c_bool
+_user32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_ssize_t]
+_user32.SendMessageW.restype = ctypes.c_ssize_t
+_user32.SetForegroundWindow.argtypes = [ctypes.c_void_p]
+_user32.SetForegroundWindow.restype = ctypes.c_bool
+_user32.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
+_user32.ShowWindow.restype = ctypes.c_bool
+_user32.TrackPopupMenu.argtypes = [
+	ctypes.c_void_p,
+	ctypes.c_uint,
+	ctypes.c_int,
+	ctypes.c_int,
+	ctypes.c_int,
+	ctypes.c_void_p,
+	ctypes.c_void_p,
+]
+_user32.TrackPopupMenu.restype = ctypes.c_uint
+
+
+def _load_ordinal_function(module, ordinal: int, restype, argtypes):
+	address = _kernel32.GetProcAddress(
+		wintypes.HMODULE(module._handle),
+		ctypes.cast(ctypes.c_void_p(ordinal), wintypes.LPCSTR),
+	)
+	if not address:
+		return None
+	function = ctypes.WINFUNCTYPE(restype, *argtypes)(address)
+	function.argtypes = argtypes
+	function.restype = restype
+	return function
+
+
+_allow_dark_mode_for_window = (
+	_load_ordinal_function(_uxtheme, 145, ctypes.c_bool, [ctypes.c_void_p, ctypes.c_bool])
+	or _load_ordinal_function(_uxtheme, 133, ctypes.c_bool, [ctypes.c_void_p, ctypes.c_bool])
+)
+_set_preferred_app_mode = _load_ordinal_function(_uxtheme, 135, ctypes.c_int, [ctypes.c_int])
+_flush_menu_themes = _load_ordinal_function(_uxtheme, 136, None, [])
+
+
+def _apply_menu_theme_support(theme: str | None, hwnd: int | None = None):
+	if _set_preferred_app_mode is None:
+		return False
+	try:
+		normalized = str(theme or "system").casefold()
+		if normalized == "dark":
+			mode = 2  # ForceDark
+			allow_dark = True
+		elif normalized == "light":
+			mode = 3  # ForceLight
+			allow_dark = False
+		else:
+			mode = 1  # AllowDark
+			allow_dark = True
+
+		_set_preferred_app_mode(mode)
+		if hwnd is not None and _allow_dark_mode_for_window is not None:
+			_allow_dark_mode_for_window(hwnd, allow_dark)
+		if _flush_menu_themes is not None:
+			_flush_menu_themes()
+		return True
+	except Exception:
+		core_logger.debug("Failed to apply menu theme support", exc_info=True)
+		return False
 
 
 def _default_ui_origin_host(title: str) -> str:
@@ -93,6 +182,9 @@ class _JsApi:
 		self.syncValue = main.syncValue
 		self.syncValues = main._sync_values
 		self.pin = main.pin
+		self.startWindowDrag = main.startWindowDrag
+		self.toggleWindowMaximize = main.toggleWindowMaximize
+		self.showWindowSystemMenu = main.showWindowSystemMenu
 		self.minimize = main.minimize
 		self.destroy = main.destroy
 		self.resolveResource = main.resolveResource
@@ -141,11 +233,13 @@ class MainWindow:
 				"system_settings": None,
 				"system_nofication": [],
 				"system_pin": False,
+				"system_maximized": False,
 			}
 		)
 		self.values.sync = self.queue_sync_value
 		self._start_ui_server()
 		self._configure_webview2_origin_identity()
+		_apply_menu_theme_support(self.values.get("system_theme"))
 
 		self._window = webview.create_window(
 			self._current_title(),
@@ -166,6 +260,8 @@ class MainWindow:
 		self.api._init(self)
 		self._window.events.before_show += self._before_show
 		self._window.events.closed += self._on_closed
+		self._window.events.maximized += lambda *_: self._set_window_maximized_state(True)
+		self._window.events.restored += lambda *_: self._set_window_maximized_state(False)
 
 		core_logger.debug("Window created")
 
@@ -208,6 +304,8 @@ class MainWindow:
 		return state
 
 	def syncValue(self, key, value):
+		if key == "system_theme":
+			_apply_menu_theme_support(value, self._window_handle())
 		return self.values.set(key, value, False)
 
 	def addSettings(self, pageFile: str | Path | None = None, pageData: dict | None = None):
@@ -245,6 +343,15 @@ class MainWindow:
 
 	def _current_title(self):
 		return self.values.get("system_title", self._title)
+
+	def _window_handle(self) -> int | None:
+		try:
+			native = getattr(self._window, "native", None)
+			if native is None:
+				return None
+			return int(native.Handle.ToInt64())
+		except Exception:
+			return None
 
 	def _entry_path(self) -> Path:
 		entry = (Path(self.packagePath) / "index.html").resolve()
@@ -329,7 +436,9 @@ class MainWindow:
 	def _before_show(self):
 		try:
 			hwnd = self._window.native.Handle.ToInt64()
+			_apply_menu_theme_support(self.values.get("system_theme"), hwnd)
 			title_bar.hide(hwnd)
+			self._set_window_maximized_state(bool(_user32.IsZoomed(hwnd)), sync=False)
 		except Exception:
 			core_logger.debug("Failed to hide title bar", exc_info=True)
 
@@ -363,6 +472,16 @@ class MainWindow:
 
 	def queue_sync_value(self, key: str, value):
 		self._dispatch_or_defer_sync(key, value)
+
+	def _set_window_maximized_state(self, value: bool, *, sync: bool = True):
+		value = bool(value)
+		if self.values.get("system_maximized") == value:
+			return
+		self.values.set("system_maximized", value, False)
+		if sync:
+			timer = threading.Timer(0.01, lambda: self.queue_sync_value("system_maximized", value))
+			timer.daemon = True
+			timer.start()
 
 	def _init_payload(self):
 		return dict(self.values)
@@ -410,6 +529,87 @@ class MainWindow:
 				_apply()
 		except Exception:
 			core_logger.debug("Failed to set window on top", exc_info=True)
+
+	def startWindowDrag(self):
+		try:
+			native = getattr(self._window, "native", None)
+			if native is None:
+				return
+
+			action_type = getattr(importlib.import_module("System"), "Action")
+
+			def _apply():
+				hwnd = int(native.Handle.ToInt64())
+				_user32.ReleaseCapture()
+				_user32.SendMessageW(hwnd, 0x00A1, 2, 0)  # WM_NCLBUTTONDOWN, HTCAPTION
+
+			if native.InvokeRequired:
+				native.BeginInvoke(action_type(_apply))
+			else:
+				_apply()
+		except Exception:
+			core_logger.debug("Failed to start system window drag", exc_info=True)
+
+	def toggleWindowMaximize(self):
+		try:
+			native = getattr(self._window, "native", None)
+			if native is None:
+				return
+
+			action_type = getattr(importlib.import_module("System"), "Action")
+
+			def _apply():
+				hwnd = int(native.Handle.ToInt64())
+				is_zoomed = bool(_user32.IsZoomed(hwnd))
+				command = 9 if is_zoomed else 3  # SW_RESTORE / SW_MAXIMIZE
+				_user32.ShowWindow(hwnd, command)
+
+			if native.InvokeRequired:
+				native.BeginInvoke(action_type(_apply))
+			else:
+				_apply()
+		except Exception:
+			core_logger.debug("Failed to toggle window maximize", exc_info=True)
+
+	def showWindowSystemMenu(self):
+		try:
+			native = getattr(self._window, "native", None)
+			if native is None:
+				return
+
+			action_type = getattr(importlib.import_module("System"), "Action")
+
+			def _apply():
+				hwnd = int(native.Handle.ToInt64())
+				menu = _user32.GetSystemMenu(hwnd, False)
+				if not menu:
+					return
+				_apply_menu_theme_support(self.values.get("system_theme"), hwnd)
+
+				cursor = _Point()
+				if not _user32.GetCursorPos(ctypes.byref(cursor)):
+					return
+
+				_user32.SetForegroundWindow(hwnd)
+				command = _user32.TrackPopupMenu(
+					menu,
+					0x0100 | 0x0002,  # TPM_RETURNCMD | TPM_RIGHTBUTTON
+					cursor.x,
+					cursor.y,
+					0,
+					hwnd,
+					None,
+				)
+				if command:
+					_user32.PostMessageW(hwnd, 0x0112, command, 0)  # WM_SYSCOMMAND
+				_user32.PostMessageW(hwnd, 0x0000, 0, 0)  # WM_NULL
+
+			if native.InvokeRequired:
+				native.BeginInvoke(action_type(_apply))
+			else:
+				_apply()
+		except Exception:
+			core_logger.debug("Failed to show window system menu", exc_info=True)
 
 	def get_window_size(self) -> tuple[int, int]:
 		width = int(getattr(self._window, "initial_width", DEFAULT_WINDOW_WIDTH))

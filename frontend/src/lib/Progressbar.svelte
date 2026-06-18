@@ -4,7 +4,12 @@
 <span class="main {data.attr.type}" class:disabled={String(data.attr.disabled??"")=="true"} style="
     margin: {data.attr.margin ?? 0};
     width: {data.attr.width ?? '160px'};
-    margin: {data.attr.margin ?? 0};
+    height: {data.attr.height ?? '4px'};
+    --progress-round: {data.attr.round ?? '2px'};
+    --progress-track-round: {data.attr.trackRound ?? '1px'};
+    --progress-color: {data.attr.color ?? 'var(--AccentFillColorDefaultBrush)'};
+    --progress-background: {data.attr.background ?? 'var(--ControlStrongFillColorDefaultBrush)'};
+    --progress-shadow: {data.attr.shadow ?? '0 1px 0 0 var(--SmokeFillColorDefaultBrush)'};
 ">
     <span> </span>
     <div style="width: {data.attr.data??0}%"></div>
@@ -20,25 +25,25 @@
     }
     .main{
         align-self: center;
-        height: 4px;
-        border-radius: 2px;
+        height: 100%;
+        border-radius: var(--progress-round);
         overflow: hidden;
         span{
             position: absolute;
             inset: 1px;
-            border-radius: 1px;
+            border-radius: var(--progress-track-round);
         }
         div{
             position: absolute;
             inset: 0;
-            border-radius: 2px;
-            background-color: var(--AccentFillColorDefaultBrush);
-            box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
+            border-radius: var(--progress-round);
+            background-color: var(--progress-color);
+            box-shadow: var(--progress-shadow);
         }
         &.progress{
             span{
-                background-color: var(--ControlStrongFillColorDefaultBrush);
-                box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
+                background-color: var(--progress-background);
+                box-shadow: var(--progress-shadow);
             }
 
         }

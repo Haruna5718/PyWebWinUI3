@@ -25,6 +25,19 @@
 			margin: {data.attr.margin ?? 0};
 			width: {data.attr.width ?? 'fit-content'};
 			height: {data.attr.height ?? 'fit-content'};
+			--button-padding: {data.attr.padding ?? '6px 10px'};
+			--button-radius: {data.attr.round ?? '4px'};
+			--button-color: {data.attr.color ?? 'inherit'};
+			--button-background: {data.attr.background ?? 'var(--ControlFillColorDefaultBrush)'};
+			--button-hover-background: {data.attr.hoverBackground ?? 'var(--ControlFillColorSecondaryBrush)'};
+			--button-active-background: {data.attr.activeBackground ?? 'var(--ControlFillColorTertiaryBrush)'};
+			--button-border-color: {data.attr.borderColor ?? 'var(--ControlStrokeColorDefaultBrush)'};
+			--button-shadow: {data.attr.shadow ?? '0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--button-border-color) inset'};
+			--button-select-color: {data.attr.selectColor ?? 'var(--TextOnAccentFillColorPrimaryBrush)'};
+			--button-select-background: {data.attr.selectBackground ?? 'var(--AccentFillColorDefaultBrush)'};
+			--button-select-hover-background: {data.attr.selectHoverBackground ?? 'var(--AccentFillColorSecondaryBrush)'};
+			--button-select-active-background: {data.attr.selectActiveBackground ?? 'var(--AccentFillColorTertiaryBrush)'};
+			--button-select-active-color: {data.attr.selectActiveColor ?? 'var(--TextOnAccentFillColorSecondaryBrush)'};
 		"
 	>
 		{data.text} 
@@ -35,6 +48,19 @@
 		margin: {data.attr.margin ?? 0};
 		width: {data.attr.width ?? 'fit-content'};
 		height: {data.attr.height ?? 'fit-content'};
+		--button-padding: {data.attr.padding ?? '6px 10px'};
+		--button-radius: {data.attr.round ?? '4px'};
+		--button-color: {data.attr.color ?? 'inherit'};
+		--button-background: {data.attr.background ?? 'var(--ControlFillColorDefaultBrush)'};
+		--button-hover-background: {data.attr.hoverBackground ?? 'var(--ControlFillColorSecondaryBrush)'};
+		--button-active-background: {data.attr.activeBackground ?? 'var(--ControlFillColorTertiaryBrush)'};
+		--button-border-color: {data.attr.borderColor ?? 'var(--ControlStrokeColorDefaultBrush)'};
+		--button-shadow: {data.attr.shadow ?? '0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--button-border-color) inset'};
+		--button-select-color: {data.attr.selectColor ?? 'var(--TextOnAccentFillColorPrimaryBrush)'};
+		--button-select-background: {data.attr.selectBackground ?? 'var(--AccentFillColorDefaultBrush)'};
+		--button-select-hover-background: {data.attr.selectHoverBackground ?? 'var(--AccentFillColorSecondaryBrush)'};
+		--button-select-active-background: {data.attr.selectActiveBackground ?? 'var(--AccentFillColorTertiaryBrush)'};
+		--button-select-active-color: {data.attr.selectActiveColor ?? 'var(--TextOnAccentFillColorSecondaryBrush)'};
 	">
 		{data.text}
 		<slot />
@@ -45,28 +71,33 @@
 		display: flex;
 		text-decoration: none;
 		font-size: 14px;
-		background-color: var(--ControlFillColorDefaultBrush);
-		border-radius: 4px;
-		padding: 6px 10px;
-		box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--ControlStrokeColorDefaultBrush) inset;
+		color: var(--button-color);
+		background-color: var(--button-background);
+		border-radius: var(--button-radius);
+		padding: var(--button-padding);
+		box-shadow: var(--button-shadow);
 		&:hover{
-			background-color: var(--ControlFillColorSecondaryBrush);
+			background-color: var(--button-hover-background);
 		}
 		&:active{
-			box-shadow: 0 0 0 1px var(--ControlStrokeColorDefaultBrush) inset;
-			background-color: var(--ControlFillColorTertiaryBrush);
+			box-shadow: 0 0 0 1px var(--button-border-color) inset;
+			background-color: var(--button-active-background);
 		}
 		&.select{
 			box-shadow: 0 1px 0 0 var(--SmokeFillColorDefaultBrush);
-			color: var(--TextOnAccentFillColorPrimaryBrush);
-			background-color: var(--AccentFillColorDefaultBrush);
+			color: var(--button-select-color);
+			background-color: var(--button-select-background);
 			&:hover{
-				background-color: var(--AccentFillColorSecondaryBrush);
+				background-color: var(--button-select-hover-background);
 			}
 			&:active{
-				background-color: var(--AccentFillColorTertiaryBrush);
-				color: var(--TextOnAccentFillColorSecondaryBrush);
+				background-color: var(--button-select-active-background);
+				color: var(--button-select-active-color);
 			}
+		}
+		&.disabled{
+			opacity: 0.7;
+			pointer-events: none;
 		}
 	}
 </style>

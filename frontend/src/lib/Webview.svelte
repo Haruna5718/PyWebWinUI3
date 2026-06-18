@@ -61,6 +61,8 @@
 	margin: {data.attr.margin ?? 0};
 	width: {data.attr.width ?? 'auto'};
 	height: {wrapperHeight};
+	border-radius: {data.attr.round ?? 0};
+	background-color: {data.attr.background ?? 'transparent'};
 	--ratio-padding: {aspectPadding};
 ">
 	<iframe bind:this={frame} src={resolvedSource} title="Webview" allow={data.attr.allow} on:load={postData}></iframe>

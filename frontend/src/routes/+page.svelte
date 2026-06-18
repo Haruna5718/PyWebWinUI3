@@ -10,6 +10,7 @@
 		"system_theme": "system",
 		"system_accent": ["#fff","#fff","#fff","#888","#000","#000","#000"],
 		"system_pin": false,
+		"system_maximized": false,
 		"system_pages": null,
 		"system_settings": null,
 		"system_nofication": []
@@ -463,6 +464,21 @@
 		void desktopApi.then(callback);
 	};
 
+	const handleWindowDragStart = (event: MouseEvent) => {
+		if (event.button !== 0) {
+			return;
+		}
+		if (event.detail >= 2) {
+			withDesktopApi((api) => api.toggleWindowMaximize());
+			return;
+		}
+		withDesktopApi((api) => api.startWindowDrag());
+	};
+
+	const handleWindowContextMenu = () => {
+		withDesktopApi((api) => api.showWindowSystemMenu());
+	};
+
 	onMount(() => {
 		const init = async () => {
 			window.applyBackendPatch = (patch: Record<string, any>) => {
@@ -514,21 +530,24 @@
 	{accentStyle}
 ">
 	<header>
-		<div class="pywebview-drag-region"></div>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="window-drag-region" on:mousedown={handleWindowDragStart} on:contextmenu|preventDefault={handleWindowContextMenu}></div>
 		{#if $values["system_goBack"]}
 			<button class="prevButton" on:click={()=>history.back()} disabled={!RecentPages}>
 				<span class="icon"></span>
 			</button>
 		{/if}
-		<div class="title pywebview-drag-region">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="title" on:mousedown={handleWindowDragStart} on:contextmenu|preventDefault={handleWindowContextMenu}>
 			<img src={resolvedSystemIcon} alt="" style="opacity: {resolvedSystemIcon?1:0};"/>
 			<p>{$values["system_title"]??""}</p>
 		</div>
 		{#if $values["system_pinTop"]}
 			<button on:click={()=>withDesktopApi(api => api.pin(!$values["system_pin"]))}>{$values["system_pin"]?'':''}</button>
 		{/if}
-		<button on:click={()=>withDesktopApi(api => api.minimize())}></button>
-		<button on:click={()=>withDesktopApi(api => api.destroy())}></button>
+		<button style="font-size: 10px;" on:click={()=>withDesktopApi(api => api.minimize())}></button>
+		<button style="font-size: 10px;" on:click={()=>withDesktopApi(api => api.toggleWindowMaximize())}>{$values["system_maximized"]?'':''}</button>
+		<button style="font-size: 10px;" on:click={()=>withDesktopApi(api => api.destroy())}></button>
 	</header>
 	<nav style="grid-template-rows: 40px 1fr {$values['system_settings'] ? '40px' : ''};">
 		<button class="menuButton" style="width: 40px" on:click={()=>isNavOpen=!isNavOpen}>
@@ -718,7 +737,7 @@
 		align-items: center;
 		padding: 5px;
 		justify-content: space-between;
-		.pywebview-drag-region:not(.title){
+		.window-drag-region{
 			position: absolute;
 			inset: 0;
 		}
@@ -737,7 +756,6 @@
 			color: var(--TextFillColorTertiaryBrush);
 			width: 30px;
 			height: 30px;
-			font-size: 15px;
 			margin: 5px;
 			border-radius: 4px;
 			z-index: 1;

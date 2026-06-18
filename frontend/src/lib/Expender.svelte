@@ -29,6 +29,9 @@
     }
 </script>
 <div class="main" style="
+    margin: {data.attr.margin ?? 0};
+    width: {data.attr.width ?? 'auto'};
+    height: {data.attr.height ?? 'auto'};
     border-radius: {data.attr.round ?? '4px'};
 ">
     <div

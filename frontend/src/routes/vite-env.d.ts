@@ -10,6 +10,9 @@ declare global {
 		syncValues: (patch: Record<string, any>) => void;
 		resolveResource: (source: string) => Promise<string>;
 		pin: (state: boolean) => void;
+		startWindowDrag: () => void;
+		toggleWindowMaximize: () => void;
+		showWindowSystemMenu: () => void;
 		minimize: () => void;
 		destroy: () => void;
 		openExternal: (url: string) => void;
@@ -24,6 +27,9 @@ declare global {
 				syncValues?: (patch: Record<string, any>) => Promise<any> | any;
 				resolveResource?: (source: string) => Promise<string> | string;
 				pin?: (state: boolean) => Promise<any> | any;
+				startWindowDrag?: () => Promise<any> | any;
+				toggleWindowMaximize?: () => Promise<any> | any;
+				showWindowSystemMenu?: () => Promise<any> | any;
 				minimize?: () => Promise<any> | any;
 				destroy?: () => Promise<any> | any;
 				openExternal?: (url: string) => Promise<any> | any;

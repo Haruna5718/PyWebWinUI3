@@ -246,55 +246,100 @@ class Color:
 # 		gap = "inherit"
 # 		round = "4px"
 # 		border = "1px"
+# 		margin = "0"
 # 		padding = "16px"
+# 		width = "auto"
+# 		height = "auto"
 # 		align = "inherit"
 # 		background = Color.Background.Card.Default
+#
 # 	class Button:
 # 		disabled = False
 # 		value = None
-# 		width = "auto"
-# 		height = "auto"
-# 		type = None
+# 		type = None # None | "toggle" | "link"
 # 		url = None
+# 		target = "blank"
+# 		margin = "0"
+# 		width = "fit-content"
+# 		height = "fit-content"
+# 		padding = "6px 10px"
+# 		round = "4px"
+# 		color = "inherit"
+# 		background = Color.Fill.Control.Default
+# 		hoverBackground = Color.Fill.Control.Secondary
+# 		activeBackground = Color.Fill.Control.Tertiary
+# 		borderColor = Color.Stroke.Control.Default
+# 		shadow = "0 1px 0 0 var(--SmokeFillColorDefaultBrush), 0 0 0 1px var(--button-border-color) inset"
+# 		selectColor = Color.Fill.Text.OnAccent.Primary
+# 		selectBackground = Color.Fill.Accent.Default
+# 		selectHoverBackground = Color.Fill.Accent.Secondary
+# 		selectActiveBackground = Color.Fill.Accent.Tertiary
+# 		selectActiveColor = Color.Fill.Text.OnAccent.Secondary
+#
 # 	class Check:
 # 		disabled = False
 # 		value = None
+# 		margin = "0"
 # 		align = "left"
-# 		type = "two"
+# 		type = "two" # "two" | "three"
+#
 # 	class Expender:
 # 		disabled = False
-# 		gap = "inherit"
+# 		margin = "0"
+# 		width = "auto"
+# 		height = "auto"
 # 		round = "4px"
-# 		padding = "16px"
-# 		align = "inherit"
+#
 # 	class Horizontal:
 # 		gap = "inherit"
+# 		padding = "0"
+# 		margin = "0"
+# 		width = "auto"
+# 		height = "auto"
 # 		align = "inherit"
+#
 # 	class If:
 # 		disabled = False
-# 		value = None
+# 		data = None
+# 		raw = None
+#
 # 	class Image:
 # 		disabled = False
 # 		source = None
+# 		margin = "0"
 # 		width = "auto"
 # 		height = "auto"
+# 		round = "0"
+# 		background = "transparent"
+# 		fit = "contain"
+#
 # 	class Input:
 # 		disabled = False
+# 		value = None
+# 		type = "text"
+# 		margin = "0"
 # 		width = "auto"
 # 		height = "auto"
-# 		type = "text"
 # 		min = None
 # 		max = None
-# 		value = None
+# 		step = None
+# 		button = True
+#
 # 	class Line:
 # 		margin = "0"
-# 		size = "1"
+# 		size = "1px"
 # 		color = Color.Fill.Control.Strong.Default
+#
 # 	class Match:
 # 		disabled = False
-# 		value = None
+# 		data = None
+#
 # 	class Option:
 # 		value = None
+# 		# internal attrs injected by Select:
+# 		# optionValue = None
+# 		# selectType = "Single"
+#
 # 	class Page:
 # 		title = None
 # 		name = None
@@ -302,40 +347,62 @@ class Color:
 # 		icon = ""
 # 		state = None
 # 		badge = None
+#
 # 	class Progressbar:
 # 		disabled = False
-# 		type = None
+# 		type = None # "progress" | "running" | "success" | "paused" | "error"
+# 		margin = "0"
 # 		width = "160px"
-# 		value = None
+# 		height = "4px"
+# 		data = 0
+# 		round = "2px"
+# 		trackRound = "1px"
+# 		color = Color.Fill.Accent.Default
+# 		background = Color.Fill.Control.Strong.Default
+# 		shadow = "0 1px 0 0 var(--SmokeFillColorDefaultBrush)"
+#
 # 	class Radio:
 # 		disabled = False
 # 		group = None
 # 		value = None
+# 		margin = "0"
+# 		align = "left"
+#
 # 	class Repeat:
 # 		disabled = False
-# 		data = None
-# 		value = None
+# 		data = 0
+#
 # 	class Select:
 # 		disabled = False
+# 		value = None
+# 		type = "Single" # "Single" | "Multiple"
+# 		displayValue = None
+# 		margin = "0"
 # 		width = "auto"
 # 		height = "auto"
-# 		value = None
+#
 # 	class Slider:
 # 		disabled = False
+# 		value = None
+# 		type = "horizontal" # "horizontal" | "vertical"
+# 		margin = "0"
 # 		width = "160px"
-# 		type = "horizontal"
 # 		min = 0
 # 		max = 100
 # 		step = 1
-# 		value = None
+#
 # 	class Space:
+# 		size = None
 # 		factor = 1
+#
 # 	class Switch:
 # 		disabled = False
+# 		value = None
+# 		margin = "0"
 # 		align = "left"
 # 		on = "ON"
 # 		off = "OFF"
-# 		value = None
+#
 # 	class Text:
 # 		disabled = False
 # 		type = "default"
@@ -343,20 +410,24 @@ class Color:
 # 		color = None
 # 		size = None
 # 		url = None
+# 		target = "blank"
+#
 # 	class Vertical:
 # 		gap = "inherit"
+# 		padding = "0"
+# 		margin = "0"
 # 		width = "auto"
+# 		height = "auto"
 # 		align = "inherit"
+#
 # 	class Webview:
 # 		disabled = False
 # 		source = None
+# 		data = None
+# 		aspect = None
+# 		allow = None
+# 		margin = "0"
 # 		width = "auto"
-# 		height = "auto"
-
-# 	Other = [
-# 		"Case",
-# 		"True",
-# 		"False",
-# 		"Header",
-# 		"Content",
-# 	]
+# 		height = "400px"
+# 		round = "0"
+# 		background = "transparent"
