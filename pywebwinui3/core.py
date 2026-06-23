@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlparse, urlunparse
 from ctypes import wintypes
 
 import webview
-from hPyT import title_bar
+from hPyT import title_bar, window_dwm
 
 from .event import Event, PathEvent
 from .type import Status
@@ -193,6 +193,7 @@ class _JsApi:
 class WindowEvents:
 	def __init__(self) -> None:
 		self.windowReady = Event()
+		self.closing = Event()
 		self.closed = Event()
 		self.accentColorChange = Event()
 		self.valueChange = PathEvent()
@@ -211,6 +212,8 @@ class MainWindow:
 		self._setup_fired = False
 		self._minimum_width = DEFAULT_WINDOW_MIN_WIDTH
 		self._minimum_height = DEFAULT_WINDOW_MIN_HEIGHT
+		self._defer_window_chrome = False
+		self._startup_cloaked = False
 		self._sync_lock = threading.Lock()
 		self._pending_sync: dict[str, object] = {}
 		self._ui_server: _UiHttpServer | None = None
@@ -242,7 +245,7 @@ class MainWindow:
 		_apply_menu_theme_support(self.values.get("system_theme"))
 
 		self._window = webview.create_window(
-			self._current_title(),
+			self.values.get("system_title", self._title),
 			f"{self._ui_origin}/index.html",
 			js_api=self.api,
 			background_color="#202020",
@@ -252,16 +255,18 @@ class MainWindow:
 			min_size=(self._minimum_width, self._minimum_height),
 			on_top=bool(self.values.get("system_pin", False)),
 		)
-		self.show = self._window.show
-		self.restore = self._window.restore
-		self.hide = self._window.hide
-		self.destroy = self._window.destroy
-		self.minimize = self._window.minimize
+		self.show = self._show_window
+		self.restore = self._restore_window
+		self.hide = self._hide_window
+		self.destroy = self._destroy_window
+		self.minimize = self._minimize_window
 		self.api._init(self)
 		self._window.events.before_show += self._before_show
+		self._window.events.closing += self._on_closing
 		self._window.events.closed += self._on_closed
-		self._window.events.maximized += lambda *_: self._set_window_maximized_state(True)
-		self._window.events.restored += lambda *_: self._set_window_maximized_state(False)
+		self._window.events.maximized += self._on_window_maximized_state
+		self._window.events.restored += self._on_window_restored_state
+		self._window.events.restored += self._on_window_restored
 
 		core_logger.debug("Window created")
 
@@ -287,6 +292,9 @@ class MainWindow:
 
 	def onSetup(self):
 		return self._event_decorator(self.events.windowReady)
+
+	def onClosing(self):
+		return self._event_decorator(self.events.closing)
 
 	def onExit(self):
 		return self._event_decorator(self.events.closed)
@@ -317,11 +325,11 @@ class MainWindow:
 	def addPage(self, pageFile: str | Path | None = None, pageData: dict | None = None):
 		if pageFile and not pageData:
 			pageData = loadPage(pageFile)
-		logger.debug("Page added: %s", pageData["attr"]["path"])
-		self.values["system_pages"] = {
-			**(self.values["system_pages"] or {}),
-			pageData["attr"]["path"]: pageData,
-		}
+		page_path = str(pageData["attr"]["path"])
+		logger.debug("Page added: %s", page_path)
+		if self.values["system_pages"] is None:
+			self.values["system_pages"] = {}
+		self.values.set(f"system_pages[{json.dumps(page_path, ensure_ascii=False)}]", pageData)
 
 	def resolve_path(self, value: str | Path | None) -> Path | None:
 		if value is None:
@@ -340,9 +348,6 @@ class MainWindow:
 			return package_candidate.resolve()
 
 		return root_candidate.resolve()
-
-	def _current_title(self):
-		return self.values.get("system_title", self._title)
 
 	def _window_handle(self) -> int | None:
 		try:
@@ -437,23 +442,147 @@ class MainWindow:
 		try:
 			hwnd = self._window.native.Handle.ToInt64()
 			_apply_menu_theme_support(self.values.get("system_theme"), hwnd)
-			title_bar.hide(hwnd)
-			self._set_window_maximized_state(bool(_user32.IsZoomed(hwnd)), sync=False)
+			if self._defer_window_chrome:
+				window_dwm.toggle_cloak(hwnd, True)
+				self._startup_cloaked = True
+			else:
+				title_bar.hide(hwnd)
+				self._set_window_maximized_state(bool(_user32.IsZoomed(hwnd)), sync=False)
 		except Exception:
 			core_logger.debug("Failed to hide title bar", exc_info=True)
+
+	def _invoke_native(self, native, callback):
+		action_type = getattr(importlib.import_module("System"), "Action")
+		if native.InvokeRequired:
+			native.BeginInvoke(action_type(callback))
+		else:
+			callback()
+
+	def _invoke_native_sync(self, native, callback):
+		action_type = getattr(importlib.import_module("System"), "Action")
+		if native.InvokeRequired:
+			native.Invoke(action_type(callback))
+		else:
+			callback()
+
+	def _invoke_native_later(self, native, callback, delay: float):
+		timer = threading.Timer(delay, lambda: self._invoke_native(native, callback))
+		timer.daemon = True
+		timer.start()
+
+	def _on_window_maximized_state(self, *_):
+		self._set_window_maximized_state(True)
+
+	def _on_window_restored_state(self, *_):
+		self._set_window_maximized_state(False)
+
+	def _on_window_restored(self):
+		self._ensure_window_chrome()
+		self._refresh_client_layout()
+
+	def _ensure_window_chrome(self, delay: float = 0.08):
+		if not self._defer_window_chrome:
+			return
+
+		self._defer_window_chrome = False
+		native = getattr(self._window, "native", None)
+		if native is None:
+			return
+
+		def _apply():
+			try:
+				hwnd = int(native.Handle.ToInt64())
+				_apply_menu_theme_support(self.values.get("system_theme"), hwnd)
+				if self._startup_cloaked:
+					window_dwm.toggle_cloak(hwnd, False)
+					self._startup_cloaked = False
+				try:
+					title_bar.unhide(hwnd)
+				except Exception:
+					pass
+				title_bar.hide(hwnd)
+				self._set_window_maximized_state(bool(_user32.IsZoomed(hwnd)), sync=False)
+			except Exception:
+				core_logger.debug("Failed to ensure window chrome", exc_info=True)
+
+		self._invoke_native_later(native, _apply, delay)
+
+	def _refresh_client_layout(self, delay: float = 0.08):
+		native = getattr(self._window, "native", None)
+		if native is None:
+			return
+
+		forms = importlib.import_module("System.Windows.Forms")
+
+		def _apply():
+			try:
+				native.SuspendLayout()
+				webview_control = getattr(native, "webview", None)
+				if webview_control is not None:
+					webview_control.Dock = forms.DockStyle.Fill
+					webview_control.Bounds = native.ClientRectangle
+					webview_control.BringToFront()
+					webview_control.Invalidate()
+					webview_control.Update()
+				native.PerformLayout()
+				native.Invalidate(True)
+				native.Refresh()
+			except Exception:
+				core_logger.debug("Failed to refresh client layout", exc_info=True)
+			finally:
+				try:
+					native.ResumeLayout(True)
+				except Exception:
+					pass
+
+		self._invoke_native_later(native, _apply, delay)
+
+	def _show_window(self):
+		native = getattr(self._window, "native", None)
+		if native is None:
+			self._window.show()
+		else:
+			self._invoke_native_sync(native, self._window.show)
+		self._ensure_window_chrome()
+		self._refresh_client_layout()
+
+	def _restore_window(self):
+		native = getattr(self._window, "native", None)
+		if native is None:
+			self._window.restore()
+		else:
+			self._invoke_native_sync(native, self._window.restore)
+		self._ensure_window_chrome()
+		self._refresh_client_layout()
+
+	def _hide_window(self):
+		native = getattr(self._window, "native", None)
+		if native is None:
+			self._window.hide()
+			return
+		self._invoke_native_sync(native, self._window.hide)
+
+	def _destroy_window(self):
+		native = getattr(self._window, "native", None)
+		if native is None:
+			self._window.destroy()
+			return
+		self._invoke_native_sync(native, self._window.destroy)
+
+	def _minimize_window(self):
+		native = getattr(self._window, "native", None)
+		if native is None:
+			self._window.minimize()
+			return
+		self._invoke_native_sync(native, self._window.minimize)
+
+	def _on_closing(self, *_):
+		return not self.events.closing.set()
 
 	def _on_closed(self):
 		self.accent.stop()
 		self._stop_ui_server()
 		self.events.closed.set()
-
-	def _dispatch_or_defer_sync(self, key: str, value):
-		with self._sync_lock:
-			if not self._frontend_ready:
-				self._pending_sync[key] = value
-				return
-
-		self._dispatch_sync_value(key, value)
 
 	def _dispatch_sync_value(self, key: str, value):
 		if key == "system_title":
@@ -471,7 +600,12 @@ class MainWindow:
 			core_logger.debug("Failed to sync value %s", key, exc_info=True)
 
 	def queue_sync_value(self, key: str, value):
-		self._dispatch_or_defer_sync(key, value)
+		with self._sync_lock:
+			if not self._frontend_ready:
+				self._pending_sync[key] = value
+				return
+
+		self._dispatch_sync_value(key, value)
 
 	def _set_window_maximized_state(self, value: bool, *, sync: bool = True):
 		value = bool(value)
@@ -518,15 +652,10 @@ class MainWindow:
 				self._window.on_top = state
 				return
 
-			action_type = getattr(importlib.import_module("System"), "Action")
-
 			def _apply():
 				self._window.on_top = state
 
-			if native.InvokeRequired:
-				native.BeginInvoke(action_type(_apply))
-			else:
-				_apply()
+			self._invoke_native(native, _apply)
 		except Exception:
 			core_logger.debug("Failed to set window on top", exc_info=True)
 
@@ -536,17 +665,12 @@ class MainWindow:
 			if native is None:
 				return
 
-			action_type = getattr(importlib.import_module("System"), "Action")
-
 			def _apply():
 				hwnd = int(native.Handle.ToInt64())
 				_user32.ReleaseCapture()
 				_user32.SendMessageW(hwnd, 0x00A1, 2, 0)  # WM_NCLBUTTONDOWN, HTCAPTION
 
-			if native.InvokeRequired:
-				native.BeginInvoke(action_type(_apply))
-			else:
-				_apply()
+			self._invoke_native(native, _apply)
 		except Exception:
 			core_logger.debug("Failed to start system window drag", exc_info=True)
 
@@ -556,18 +680,13 @@ class MainWindow:
 			if native is None:
 				return
 
-			action_type = getattr(importlib.import_module("System"), "Action")
-
 			def _apply():
 				hwnd = int(native.Handle.ToInt64())
 				is_zoomed = bool(_user32.IsZoomed(hwnd))
 				command = 9 if is_zoomed else 3  # SW_RESTORE / SW_MAXIMIZE
 				_user32.ShowWindow(hwnd, command)
 
-			if native.InvokeRequired:
-				native.BeginInvoke(action_type(_apply))
-			else:
-				_apply()
+			self._invoke_native(native, _apply)
 		except Exception:
 			core_logger.debug("Failed to toggle window maximize", exc_info=True)
 
@@ -576,8 +695,6 @@ class MainWindow:
 			native = getattr(self._window, "native", None)
 			if native is None:
 				return
-
-			action_type = getattr(importlib.import_module("System"), "Action")
 
 			def _apply():
 				hwnd = int(native.Handle.ToInt64())
@@ -604,10 +721,7 @@ class MainWindow:
 					_user32.PostMessageW(hwnd, 0x0112, command, 0)  # WM_SYSCOMMAND
 				_user32.PostMessageW(hwnd, 0x0000, 0, 0)  # WM_NULL
 
-			if native.InvokeRequired:
-				native.BeginInvoke(action_type(_apply))
-			else:
-				_apply()
+			self._invoke_native(native, _apply)
 		except Exception:
 			core_logger.debug("Failed to show window system menu", exc_info=True)
 
@@ -663,6 +777,7 @@ class MainWindow:
 		debug: bool = False,
 		*,
 		hidden: bool = False,
+		minimized: bool = False,
 		on_top: bool | None = None,
 		width: int | None = None,
 		height: int | None = None,
@@ -673,7 +788,9 @@ class MainWindow:
 		self._minimum_width = max(1, int(min_width))
 		self._minimum_height = max(1, int(min_height))
 		self._window.min_size = (self._minimum_width, self._minimum_height)
+		self._defer_window_chrome = bool(hidden or minimized)
 		self._window.hidden = bool(hidden)
+		self._window.minimized = bool(minimized and not hidden)
 
 		if width is not None and height is not None:
 			width = max(self._minimum_width, int(width))

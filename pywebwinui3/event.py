@@ -12,11 +12,13 @@ class Event:
 		self.items: list[Callable[..., Any]] = []
 
 	def set(self, *args: Any):
+		result = False
 		for func in tuple(self.items):
 			try:
-				func(*args)
+				result = bool(func(*args)) or result
 			except Exception:
 				logger.exception("Event callback failed")
+		return result
 
 	def _add(self, item: Callable[..., Any]):
 		self.items.append(item)
