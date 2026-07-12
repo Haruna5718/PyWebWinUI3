@@ -216,6 +216,8 @@ class MainWindow:
 		self._startup_cloaked = False
 		self._sync_lock = threading.Lock()
 		self._pending_sync: dict[str, object] = {}
+		self._sync_event = threading.Event()
+		self._sync_thread: threading.Thread | None = None
 		self._ui_server: _UiHttpServer | None = None
 		self._ui_server_thread: threading.Thread | None = None
 		self._ui_origin = ""
@@ -581,6 +583,9 @@ class MainWindow:
 
 	def _on_closed(self):
 		self.accent.stop()
+		with self._sync_lock:
+			self._pending_sync.clear()
+		self._sync_event.set()
 		self._stop_ui_server()
 		self.events.closed.set()
 
@@ -593,19 +598,39 @@ class MainWindow:
 
 		script = f"window.syncValue({json.dumps(key, ensure_ascii=False)}, {json.dumps(value, ensure_ascii=False)}, false)"
 		try:
-			self._window.evaluate_js(script)
+			self._window.run_js(script)
 		except Exception:
-			with self._sync_lock:
-				self._pending_sync[key] = value
 			core_logger.debug("Failed to sync value %s", key, exc_info=True)
 
 	def queue_sync_value(self, key: str, value):
 		with self._sync_lock:
-			if not self._frontend_ready:
-				self._pending_sync[key] = value
-				return
+			self._pending_sync[key] = value
+			frontend_ready = self._frontend_ready
 
-		self._dispatch_sync_value(key, value)
+		if not frontend_ready:
+			return
+		self._ensure_sync_worker()
+		self._sync_event.set()
+
+	def _ensure_sync_worker(self):
+		if self._sync_thread and self._sync_thread.is_alive():
+			return
+		self._sync_thread = threading.Thread(target=self._sync_loop, daemon=True, name="PyWebWinUI3-Sync")
+		self._sync_thread.start()
+
+	def _sync_loop(self):
+		while True:
+			self._sync_event.wait()
+			while True:
+				with self._sync_lock:
+					if not self._pending_sync:
+						self._sync_event.clear()
+						break
+					pending = tuple(self._pending_sync.items())
+					self._pending_sync.clear()
+
+				for key, value in pending:
+					self._dispatch_sync_value(key, value)
 
 	def _set_window_maximized_state(self, value: bool, *, sync: bool = True):
 		value = bool(value)
@@ -633,12 +658,8 @@ class MainWindow:
 
 		self._frontend_ready = True
 
-		with self._sync_lock:
-			pending_sync = tuple(self._pending_sync.items())
-			self._pending_sync.clear()
-
-		for key, value in pending_sync:
-			self._dispatch_sync_value(key, value)
+		self._ensure_sync_worker()
+		self._sync_event.set()
 
 		if not self._setup_fired:
 			self._setup_fired = True
