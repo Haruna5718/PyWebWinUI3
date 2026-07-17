@@ -45,6 +45,8 @@ class Event:
 
 
 class PathEvent:
+	_PATTERN_CACHE_LIMIT = 512
+
 	def __init__(self) -> None:
 		self.exact_items: dict[str, Event] = {}
 		self.pattern_items: dict[str, Event] = {}
@@ -82,6 +84,8 @@ class PathEvent:
 				logger.exception("Pattern match failed")
 
 		result = tuple(matched_events)
+		if len(self._pattern_cache) >= self._PATTERN_CACHE_LIMIT:
+			self._pattern_cache.clear()
 		self._pattern_cache[target] = result
 		return result
 

@@ -7,10 +7,11 @@ import logging
 import mimetypes
 import os
 import re
+import shutil
 import sys
 import threading
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse, urlunparse
 from ctypes import wintypes
@@ -128,8 +129,7 @@ def _default_ui_origin_host(title: str) -> str:
 	return f"{slug}.local"
 
 
-class _UiHttpServer(ThreadingHTTPServer):
-	daemon_threads = True
+class _UiHttpServer(HTTPServer):
 	allow_reuse_address = True
 
 	def __init__(self, server_address, request_handler_class, main: "MainWindow"):
@@ -147,13 +147,13 @@ class _UiRequestHandler(BaseHTTPRequestHandler):
 				self._send_error("Not found.", HTTPStatus.NOT_FOUND)
 				return
 
-			body = path.read_bytes()
 			content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
 			self.send_response(HTTPStatus.OK)
 			self._send_common_headers(content_type)
-			self.send_header("Content-Length", str(len(body)))
+			self.send_header("Content-Length", str(path.stat().st_size))
 			self.end_headers()
-			self.wfile.write(body)
+			with path.open("rb") as source:
+				shutil.copyfileobj(source, self.wfile, length=64 * 1024)
 		except Exception:
 			core_logger.debug("Failed to serve UI asset", exc_info=True)
 			self._send_error("Failed to serve UI asset.", HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -301,11 +301,29 @@ class MainWindow:
 	def onExit(self):
 		return self._event_decorator(self.events.closed)
 
-	def notice(self, level: Status, title: str, description: str, item: dict | None = None):
-		self.values["system_nofication"] = [
-			*(self.values["system_nofication"] or []),
-			[level, title, description, item],
-		]
+	def notice(
+		self,
+		level: Status,
+		title: str,
+		description: str,
+		item: dict | None = None,
+		*,
+		key: str | None = None,
+	):
+		notifications = list(self.values["system_nofication"] or [])
+		notification = [key, level, title, description, item] if key is not None else [level, title, description, item]
+
+		if key is not None:
+			for index, current in enumerate(notifications):
+				if len(current) == 5 and current[0] == key:
+					notifications[index] = notification
+					break
+			else:
+				notifications.append(notification)
+		else:
+			notifications.append(notification)
+
+		self.values["system_nofication"] = notifications
 
 	def pin(self, state: bool):
 		state = bool(state)
@@ -589,18 +607,40 @@ class MainWindow:
 		self._stop_ui_server()
 		self.events.closed.set()
 
-	def _dispatch_sync_value(self, key: str, value):
-		if key == "system_title":
+	def _dispatch_sync_values(self, values: dict[str, object]):
+		if not values:
+			return
+
+		if "system_title" in values:
 			try:
-				self._window.title = str(value or self._title)
+				self._window.title = str(values["system_title"] or self._title)
 			except Exception:
 				core_logger.debug("Failed to update window title", exc_info=True)
 
-		script = f"window.syncValue({json.dumps(key, ensure_ascii=False)}, {json.dumps(value, ensure_ascii=False)}, false)"
+		native = getattr(self._window, "native", None)
+		browser = getattr(native, "browser", None)
+		webview2 = getattr(browser, "webview", None)
+		if native is None or webview2 is None:
+			core_logger.debug("WebView2 is unavailable for UI sync")
+			return
+
 		try:
-			self._window.run_js(script)
+			message = json.dumps(
+				{"type": "pywebwinui3.sync", "values": values},
+				ensure_ascii=False,
+			)
+
+			def post_message():
+				try:
+					core_webview = webview2.CoreWebView2
+					if core_webview is not None:
+						core_webview.PostWebMessageAsJson(message)
+				except Exception:
+					core_logger.debug("Failed to post UI sync message", exc_info=True)
+
+			self._invoke_native(native, post_message)
 		except Exception:
-			core_logger.debug("Failed to sync value %s", key, exc_info=True)
+			core_logger.debug("Failed to queue UI sync message", exc_info=True)
 
 	def queue_sync_value(self, key: str, value):
 		with self._sync_lock:
@@ -626,11 +666,10 @@ class MainWindow:
 					if not self._pending_sync:
 						self._sync_event.clear()
 						break
-					pending = tuple(self._pending_sync.items())
+					pending = dict(self._pending_sync)
 					self._pending_sync.clear()
 
-				for key, value in pending:
-					self._dispatch_sync_value(key, value)
+				self._dispatch_sync_values(pending)
 
 	def _set_window_maximized_state(self, value: bool, *, sync: bool = True):
 		value = bool(value)

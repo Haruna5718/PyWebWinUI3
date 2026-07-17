@@ -480,6 +480,15 @@
 	};
 
 	onMount(() => {
+		const webview = (window as any).chrome?.webview;
+		const handleHostMessage = (event: MessageEvent) => {
+			const message = event.data;
+			if (message?.type === "pywebwinui3.sync" && message.values && typeof message.values === "object") {
+				applyPatch(message.values);
+			}
+		};
+		webview?.addEventListener("message", handleHostMessage);
+
 		const init = async () => {
 			window.applyBackendPatch = (patch: Record<string, any>) => {
 				const nextPatch = patch ?? {};
@@ -512,6 +521,7 @@
 		void init();
 
 		return () => {
+			webview?.removeEventListener("message", handleHostMessage);
 		};
 	});
 
@@ -602,7 +612,12 @@
 		{/if}
 	{/key}
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">
-		{#each $values["system_nofication"] as [level,title,description,item], ind}
+		{#each $values["system_nofication"] as notice, ind}
+			{@const notification = notice.length === 5 ? notice.slice(1) : notice}
+			{@const level = notification[0]}
+			{@const title = notification[1]}
+			{@const description = notification[2]}
+			{@const item = notification[3]}
 			<div class="InfoBar l{level}">
 				<span class="icon">{NOTICE_ICONS[level]}</span>
 				<span class="content">

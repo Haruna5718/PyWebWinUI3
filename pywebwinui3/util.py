@@ -175,7 +175,9 @@ class SyncDict(dict):
 		return True
 
 	def _sync(self, key, before, after, sync):
-		if sync and self.sync:
+		# Commands can intentionally set the same value again, so events must still
+		# run. The frontend only needs an update when its visible value changed.
+		if sync and self.sync and before != after:
 			self.sync(key, after)
 		self.event.set(key, before, after)
 
