@@ -4,16 +4,10 @@ import ctypes
 import importlib
 import json
 import logging
-import mimetypes
-import os
-import re
-import shutil
 import sys
 import threading
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse
 from ctypes import wintypes
 
 import webview
@@ -30,6 +24,10 @@ DEFAULT_WINDOW_WIDTH = 900
 DEFAULT_WINDOW_HEIGHT = 600
 DEFAULT_WINDOW_MIN_WIDTH = 100
 DEFAULT_WINDOW_MIN_HEIGHT = 100
+
+
+def _virtual_host_origin(root_name: str, suffix: str) -> str:
+	return f"https://{root_name}.{suffix}"
 
 
 class _Point(ctypes.Structure):
@@ -119,62 +117,6 @@ def _apply_menu_theme_support(theme: str | None, hwnd: int | None = None):
 		return False
 
 
-def _default_ui_origin_host(title: str) -> str:
-	slug = re.sub(r"[^a-z0-9]+", "-", str(title).casefold()).strip("-")
-	if not slug:
-		slug = "app"
-	slug = re.sub(r"-{2,}", "-", slug)[:48].strip("-")
-	if not slug:
-		slug = "app"
-	return f"{slug}.local"
-
-
-class _UiHttpServer(HTTPServer):
-	allow_reuse_address = True
-
-	def __init__(self, server_address, request_handler_class, main: "MainWindow"):
-		super().__init__(server_address, request_handler_class)
-		self.main = main
-
-
-class _UiRequestHandler(BaseHTTPRequestHandler):
-	server: _UiHttpServer
-
-	def do_GET(self):
-		try:
-			path = self.server.main._resolve_server_path(urlparse(self.path).path)
-			if path is None or not path.is_file():
-				self._send_error("Not found.", HTTPStatus.NOT_FOUND)
-				return
-
-			content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-			self.send_response(HTTPStatus.OK)
-			self._send_common_headers(content_type)
-			self.send_header("Content-Length", str(path.stat().st_size))
-			self.end_headers()
-			with path.open("rb") as source:
-				shutil.copyfileobj(source, self.wfile, length=64 * 1024)
-		except Exception:
-			core_logger.debug("Failed to serve UI asset", exc_info=True)
-			self._send_error("Failed to serve UI asset.", HTTPStatus.INTERNAL_SERVER_ERROR)
-
-	def log_message(self, format, *args):
-		return
-
-	def _send_error(self, message: str, status: HTTPStatus):
-		body = message.encode("utf-8")
-		self.send_response(status)
-		self._send_common_headers("text/plain; charset=utf-8")
-		self.send_header("Content-Length", str(len(body)))
-		self.end_headers()
-		self.wfile.write(body)
-
-	def _send_common_headers(self, content_type: str):
-		self.send_header("Content-Type", content_type)
-		self.send_header("Cache-Control", "no-store")
-		self.send_header("Permissions-Policy", "display-capture=*")
-
-
 class _JsApi:
 	def _init(self, main:MainWindow):
 		self.init = main._init_payload
@@ -200,6 +142,8 @@ class WindowEvents:
 
 
 class MainWindow:
+	virtual_host_suffix = "pywebwinui"
+
 	def __init__(self, title: str, icon: str | None = None):
 		self.rootPath = Path(sys._getframe(1).f_code.co_filename).parent.resolve()
 		self.packagePath = Path(__file__).parent.resolve() / "web"
@@ -218,11 +162,8 @@ class MainWindow:
 		self._pending_sync: dict[str, object] = {}
 		self._sync_event = threading.Event()
 		self._sync_thread: threading.Thread | None = None
-		self._ui_server: _UiHttpServer | None = None
-		self._ui_server_thread: threading.Thread | None = None
-		self._ui_origin = ""
-		self._ui_bind_host = "127.0.0.1"
-		self._ui_origin_host = getattr(self, "ui_origin_host", _default_ui_origin_host(title))
+		self._virtual_host_handlers: dict[str, object] = {}
+		self._ui_origin = _virtual_host_origin("package", self.virtual_host_suffix)
 		self._resource_roots: list[tuple[str, Path]] = [
 			("root", self.rootPath),
 			("package", self.packagePath),
@@ -242,13 +183,11 @@ class MainWindow:
 			}
 		)
 		self.values.sync = self.queue_sync_value
-		self._start_ui_server()
-		self._configure_webview2_origin_identity()
 		_apply_menu_theme_support(self.values.get("system_theme"))
 
 		self._window = webview.create_window(
 			self.values.get("system_title", self._title),
-			f"{self._ui_origin}/index.html",
+			"about:blank",
 			js_api=self.api,
 			background_color="#202020",
 			text_select=True,
@@ -384,82 +323,86 @@ class MainWindow:
 			raise FileNotFoundError(f"Frontend entry not found: {entry}")
 		return entry
 
-	def _start_ui_server(self):
-		self._ui_server = _UiHttpServer((self._ui_bind_host, 0), _UiRequestHandler, self)
-		self._ui_origin = f"http://{self._ui_origin_host}:{self._ui_server.server_port}"
-		self._ui_server_thread = threading.Thread(target=self._ui_server.serve_forever, daemon=True)
-		self._ui_server_thread.start()
-
-	def _configure_webview2_origin_identity(self):
-		if self._ui_origin_host == self._ui_bind_host:
-			return
-
-		parsed = urlparse(self._ui_origin)
-		if not parsed.scheme or parsed.port is None:
-			return
-
-		required_args = [
-			f'--host-resolver-rules="MAP {self._ui_origin_host} {self._ui_bind_host}"',
-			f"--unsafely-treat-insecure-origin-as-secure={parsed.scheme}://{self._ui_origin_host}:{parsed.port}",
-		]
-		existing = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "").strip()
-		missing = [arg for arg in required_args if arg not in existing]
-		if missing:
-			os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = " ".join(
-				[value for value in [existing, *missing] if value]
-			).strip()
-
-	def _stop_ui_server(self):
-		if self._ui_server is None:
-			return
-		try:
-			self._ui_server.shutdown()
-			self._ui_server.server_close()
-		except Exception:
-			core_logger.debug("Failed to stop UI server", exc_info=True)
-		finally:
-			self._ui_server = None
-			self._ui_server_thread = None
-
-	def _resolve_path_under(self, base_path: Path, relative_path: str) -> Path | None:
-		candidate = (base_path / relative_path).resolve()
-		try:
-			candidate.relative_to(base_path)
-		except ValueError:
-			return None
-		return candidate
-
-	def _resolve_server_path(self, raw_path: str) -> Path | None:
-		path = unquote(raw_path or "/")
-		if path in {"", "/"}:
-			return self._entry_path()
-
-		for name, base_path in self._resource_roots:
-			if name == "package":
-				continue
-
-			prefix = f"/__{name}__/"
-			if path.startswith(prefix):
-				return self._resolve_path_under(base_path, path[len(prefix) :])
-
-		return self._resolve_path_under(self.packagePath, path.lstrip("/"))
-
 	def _resource_url(self, path: Path) -> str:
 		path = path.resolve()
-		for name, base_path in self._resource_roots:
+		for name, base_path in sorted(self._resource_roots, key=lambda item: len(item[1].parts), reverse=True):
 			try:
 				relative = path.relative_to(base_path)
 			except ValueError:
 				continue
 
-			if name == "package":
-				return f"{self._ui_origin}/{relative.as_posix()}"
-			return f"{self._ui_origin}/__{name}__/{relative.as_posix()}"
+			return f"{_virtual_host_origin(name, self.virtual_host_suffix)}/{relative.as_posix()}"
 
 		raise ValueError(f"Path is outside of registered resource roots: {path}")
 
+	def _map_virtual_hosts(self, core_webview):
+		parameter = core_webview.GetType().GetMethod("SetVirtualHostNameToFolderMapping").GetParameters()[2]
+		access_kind = next(
+			value for value in parameter.ParameterType.GetEnumValues()
+			if str(value) == "DenyCors"
+		)
+
+		for name, base_path in self._resource_roots:
+			core_webview.SetVirtualHostNameToFolderMapping(
+				f"{name}.{self.virtual_host_suffix}",
+				str(base_path),
+				access_kind,
+			)
+
+	def _configure_virtual_host_window(self, window, target_url: str, *, show: bool = False):
+		native = getattr(window, "native", None)
+		browser = getattr(native, "browser", None)
+		webview_control = getattr(browser, "webview", None)
+		if native is None or browser is None or webview_control is None:
+			core_logger.debug("WebView2 is unavailable for virtual host mapping")
+			return
+
+		def load_mapped_url(core_webview):
+			self._map_virtual_hosts(core_webview)
+			browser.load_url(target_url)
+			if show:
+				window.show()
+
+		def on_initialized(_, args):
+			try:
+				if not args.IsSuccess:
+					core_logger.error("WebView2 initialization failed before virtual host mapping")
+					return
+				load_mapped_url(webview_control.CoreWebView2)
+			except Exception:
+				core_logger.error("Failed to configure WebView2 virtual host mapping", exc_info=True)
+			finally:
+				try:
+					webview_control.CoreWebView2InitializationCompleted -= on_initialized
+				except Exception:
+					pass
+				self._virtual_host_handlers.pop(window.uid, None)
+
+		def configure():
+			try:
+				core_webview = webview_control.CoreWebView2
+			except Exception:
+				core_webview = None
+			if core_webview is not None:
+				load_mapped_url(core_webview)
+				return
+			self._virtual_host_handlers[window.uid] = on_initialized
+			webview_control.CoreWebView2InitializationCompleted += on_initialized
+
+		try:
+			self._invoke_native_sync(native, configure)
+		except Exception:
+			core_logger.error("Failed to configure WebView2 virtual host mapping", exc_info=True)
+
+	def createResourceWindow(self, title: str, url: str, **kwargs):
+		keep_hidden = bool(kwargs.pop("hidden", False))
+		window = webview.create_window(title, "about:blank", hidden=True, **kwargs)
+		self._configure_virtual_host_window(window, url, show=not keep_hidden)
+		return window
+
 	def _before_show(self):
 		try:
+			self._configure_virtual_host_window(self._window, self._resource_url(self._entry_path()))
 			hwnd = self._window.native.Handle.ToInt64()
 			_apply_menu_theme_support(self.values.get("system_theme"), hwnd)
 			if self._defer_window_chrome:
@@ -604,7 +547,7 @@ class MainWindow:
 		with self._sync_lock:
 			self._pending_sync.clear()
 		self._sync_event.set()
-		self._stop_ui_server()
+		self._virtual_host_handlers.clear()
 		self.events.closed.set()
 
 	def _dispatch_sync_values(self, values: dict[str, object]):
