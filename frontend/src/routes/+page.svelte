@@ -595,22 +595,31 @@
 			</button>
 		{/if}
 	</nav>
-	{#key hash}
-		{#if settingsPage?.["attr"]?.["path"]==hash}
-			<Component rawData={settingsPage}/>
-		{:else if $values["system_pages"]?.[hash]}
-			<Component rawData={$values["system_pages"][hash]}/>
-		{:else if $values["system_pages"]==null}
+	{#if $values["system_pages"]}
+		{#each sortedPageKeys as key}
+			{@const page = $values["system_pages"][key]}
+			{@const keepalive = page?.["attr"]?.["keepalive"] === true || page?.["attr"]?.["keepalive"] === "true"}
+			{#if key === hash || keepalive}
+				<div class:keepaliveHidden={key !== hash} class="pageRoot">
+					<Component rawData={page}/>
+				</div>
+			{/if}
+		{/each}
+	{/if}
+	{#if settingsPage?.["attr"]?.["path"]==hash}
+		<Component rawData={settingsPage}/>
+	{:else}
+		{#if $values["system_pages"]==null}
 			<div class="pageMessage">
 				<p>Initializing...</p>
 			</div>
-		{:else}
+		{:else if !$values["system_pages"]?.[hash]}
 			<div class="pageMessage">
 				<h1>404 Not Found</h1>
 				<p>The page '{hash}' does not exist.</p>
 			</div>
 		{/if}
-	{/key}
+	{/if}
 	<div class="nofication" style="max-width: calc(100% - {isNavOpen ? 250 : 70}px);">
 		{#each $values["system_nofication"] as notice, ind}
 			{@const notification = notice.length === 5 ? notice.slice(1) : notice}
@@ -635,6 +644,14 @@
 	</div>
 </main>
 <style lang="scss">
+	.pageRoot {
+		display: contents;
+	}
+
+	.pageRoot.keepaliveHidden {
+		display: none;
+	}
+
 	.pageMessage{
 		display: flex;
 		flex-direction: column;

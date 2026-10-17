@@ -90,21 +90,24 @@ class PathEvent:
 		return result
 
 	def set(self, target: str, *args: Any):
+		result = False
 		if not self.exact_items and not self.pattern_items:
-			return
+			return result
 
 		exact_event = self.exact_items.get(target)
 		if exact_event is not None:
 			try:
-				exact_event.set(target, *args)
+				result = bool(exact_event.set(target, *args)) or result
 			except Exception:
 				logger.exception("Exact path callback failed")
 
 		for event in self._get_pattern_events(target):
 			try:
-				event.set(target, *args)
+				result = bool(event.set(target, *args)) or result
 			except Exception:
 				logger.exception("Pattern path callback failed")
+
+		return result
 
 	def _modify(self, item: list, remove: bool):
 		target, callback = item[0], item[1]

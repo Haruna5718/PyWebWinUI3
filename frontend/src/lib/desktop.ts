@@ -5,6 +5,7 @@ const waitForDesktopApi = async (): Promise<DesktopApi> => {
 		return {
 			init: async () => ({}),
 			frontendReady: () => {},
+			message: async () => false,
 			syncValue: () => {},
 			syncValues: () => {},
 			resolveResource: async (source) => source,
@@ -27,6 +28,12 @@ const waitForDesktopApi = async (): Promise<DesktopApi> => {
 					if (typeof api.frontendReady === 'function') {
 						void api.frontendReady();
 					}
+				},
+				message: async (key, value) => {
+					if (typeof api.message === 'function') {
+						return Boolean(await api.message(key, value));
+					}
+					return false;
 				},
 				syncValue: (target, value) => {
 					void api.syncValue(target, value);

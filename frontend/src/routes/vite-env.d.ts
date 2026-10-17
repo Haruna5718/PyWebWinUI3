@@ -6,6 +6,7 @@ declare global {
 	interface DesktopApi {
 		init: () => Promise<Record<string, any>>;
 		frontendReady: () => void;
+		message: (key: string, value: any) => Promise<boolean>;
 		syncValue: (target: string, value: any) => void;
 		syncValues: (patch: Record<string, any>) => void;
 		resolveResource: (source: string) => Promise<string>;
@@ -23,6 +24,7 @@ declare global {
 			api: {
 				init: () => Promise<Record<string, any>> | Record<string, any>;
 				frontendReady?: () => Promise<any> | any;
+				message?: (key: string, value: any) => Promise<any> | any;
 				syncValue: (target: string, value: any) => Promise<any> | any;
 				syncValues?: (patch: Record<string, any>) => Promise<any> | any;
 				resolveResource?: (source: string) => Promise<string> | string;

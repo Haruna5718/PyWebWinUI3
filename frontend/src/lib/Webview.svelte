@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { resolveDesktopResource } from './desktop';
+	import { onMount } from 'svelte';
+
+	import { getDesktopApi, resolveDesktopResource } from './desktop';
 
 	export let data: { [key: string]: any };
 
@@ -19,6 +21,60 @@
 
 		frame.contentWindow.postMessage(payloadValue, '*');
 	};
+
+	let relayQueue = Promise.resolve();
+	const relayFrameMessage = (event: MessageEvent) => {
+		const key = data.attr.relay;
+		if (typeof key !== 'string' || !key || event.source !== frame?.contentWindow) {
+			return;
+		}
+
+		try {
+			if (event.origin !== new URL(resolvedSource).origin || event.data?.type !== key) {
+				return;
+			}
+		} catch (_) {
+			return;
+		}
+
+		const requestId = event.data.value?.requestId;
+		relayQueue = relayQueue
+			.catch(() => {})
+			.then(async () => {
+				const result = await (await getDesktopApi()).message(key, event.data.value);
+				if (typeof requestId !== 'string' || !frame?.contentWindow) {
+					return;
+				}
+
+				frame.contentWindow.postMessage(
+					{ type: key, value: { requestId, result } },
+					new URL(resolvedSource).origin,
+				);
+			});
+	};
+
+	const relayHostMessage = (event: CustomEvent<{ key?: string; value?: unknown }>) => {
+		if (event.detail?.key !== data.attr.relay || !frame?.contentWindow || !resolvedSource) {
+			return;
+		}
+
+		try {
+			frame.contentWindow.postMessage(
+				{ type: event.detail.key, value: event.detail.value },
+				new URL(resolvedSource).origin,
+			);
+		} catch (_) {
+		}
+	};
+
+	onMount(() => {
+		window.addEventListener('message', relayFrameMessage);
+		window.addEventListener('pywebwinui3-message', relayHostMessage as EventListener);
+		return () => {
+			window.removeEventListener('message', relayFrameMessage);
+			window.removeEventListener('pywebwinui3-message', relayHostMessage as EventListener);
+		};
+	});
 
 	$: {
 		const source = data.attr.source;

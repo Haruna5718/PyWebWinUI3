@@ -26,10 +26,6 @@ DEFAULT_WINDOW_MIN_WIDTH = 100
 DEFAULT_WINDOW_MIN_HEIGHT = 100
 
 
-def _virtual_host_origin(root_name: str, suffix: str) -> str:
-	return f"https://{root_name}.{suffix}"
-
-
 class _Point(ctypes.Structure):
 	_fields_ = [
 		("x", ctypes.c_long),
@@ -121,6 +117,7 @@ class _JsApi:
 	def _init(self, main:MainWindow):
 		self.init = main._init_payload
 		self.frontendReady = main._frontend_ready_callback
+		self.message = main.message
 		self.syncValue = main.syncValue
 		self.syncValues = main._sync_values
 		self.pin = main.pin
@@ -138,15 +135,22 @@ class WindowEvents:
 		self.closing = Event()
 		self.closed = Event()
 		self.accentColorChange = Event()
+		self.message = PathEvent()
 		self.valueChange = PathEvent()
 
 
 class MainWindow:
-	virtual_host_suffix = "pywebwinui"
+	virtual_host_suffix = "localhost"
+	virtual_host_main_host: str | None = "pywebwinui.localhost"
 
 	def __init__(self, title: str, icon: str | None = None):
 		self.rootPath = Path(sys._getframe(1).f_code.co_filename).parent.resolve()
 		self.packagePath = Path(__file__).parent.resolve() / "web"
+		bundled_package_path = Path(sys.argv[0]).resolve().parent / "pywebwinui3" / "web"
+		if bundled_package_path.is_dir():
+			self.packagePath = bundled_package_path
+		if not self.rootPath.is_dir():
+			self.rootPath = Path(sys.argv[0]).resolve().parent
 
 		self.accent = AccentColorWatcher()
 		self.events = WindowEvents()
@@ -163,10 +167,10 @@ class MainWindow:
 		self._sync_event = threading.Event()
 		self._sync_thread: threading.Thread | None = None
 		self._virtual_host_handlers: dict[str, object] = {}
-		self._ui_origin = _virtual_host_origin("package", self.virtual_host_suffix)
+		self._ui_origin = f"https://{self._virtual_host_name('main')}"
 		self._resource_roots: list[tuple[str, Path]] = [
 			("root", self.rootPath),
-			("package", self.packagePath),
+			("main", self.packagePath),
 		]
 
 		self.values = SyncDict(
@@ -228,6 +232,9 @@ class MainWindow:
 	def onValueChange(self, key):
 		return self._event_decorator(self.events.valueChange, key)
 
+	def onMessage(self, key):
+		return self._event_decorator(self.events.message, key)
+
 	def onAccentColorChange(self):
 		return self._event_decorator(self.events.accentColorChange)
 
@@ -274,6 +281,24 @@ class MainWindow:
 		if key == "system_theme":
 			_apply_menu_theme_support(value, self._window_handle())
 		return self.values.set(key, value, False)
+
+	def message(self, key, value):
+		if not isinstance(key, str) or not key:
+			return False
+		return self.events.message.set(key, value)
+
+	def postMessage(self, key, value):
+		if not isinstance(key, str) or not key:
+			return False
+		try:
+			payload = json.dumps({"key": key, "value": value})
+			self._window.evaluate_js(
+				f"window.dispatchEvent(new CustomEvent('pywebwinui3-message', {{ detail: {payload} }}));"
+			)
+			return True
+		except Exception:
+			core_logger.debug("Failed to post frontend message", exc_info=True)
+			return False
 
 	def addSettings(self, pageFile: str | Path | None = None, pageData: dict | None = None):
 		if pageFile and not pageData:
@@ -323,6 +348,11 @@ class MainWindow:
 			raise FileNotFoundError(f"Frontend entry not found: {entry}")
 		return entry
 
+	def _virtual_host_name(self, root_name: str) -> str:
+		if root_name == "main" and self.virtual_host_main_host:
+			return self.virtual_host_main_host
+		return f"{root_name}.{self.virtual_host_suffix}"
+
 	def _resource_url(self, path: Path) -> str:
 		path = path.resolve()
 		for name, base_path in sorted(self._resource_roots, key=lambda item: len(item[1].parts), reverse=True):
@@ -331,7 +361,7 @@ class MainWindow:
 			except ValueError:
 				continue
 
-			return f"{_virtual_host_origin(name, self.virtual_host_suffix)}/{relative.as_posix()}"
+			return f"https://{self._virtual_host_name(name)}/{relative.as_posix()}"
 
 		raise ValueError(f"Path is outside of registered resource roots: {path}")
 
@@ -343,50 +373,88 @@ class MainWindow:
 		)
 
 		for name, base_path in self._resource_roots:
-			core_webview.SetVirtualHostNameToFolderMapping(
-				f"{name}.{self.virtual_host_suffix}",
-				str(base_path),
-				access_kind,
-			)
+			if not base_path.is_dir():
+				core_logger.warning("Skipping unavailable virtual host resource root: %s", base_path)
+				continue
+			try:
+				core_webview.SetVirtualHostNameToFolderMapping(
+					self._virtual_host_name(name),
+					str(base_path),
+					access_kind,
+				)
+			except Exception:
+				core_logger.warning("Failed to map virtual host resource root: %s", base_path, exc_info=True)
+
+	def addResourceRoot(self, name: str, path: str | Path):
+		root = Path(path).resolve()
+		self._resource_roots = [item for item in self._resource_roots if item[0] != name]
+		self._resource_roots.append((name, root))
+
+		native = getattr(self._window, "native", None)
+		browser = getattr(native, "browser", None)
+		webview_control = getattr(browser, "webview", None)
+		if native is None or webview_control is None:
+			return
+
+		def configure():
+			try:
+				self._map_virtual_hosts(webview_control.CoreWebView2)
+			except Exception:
+				core_logger.debug("Failed to add virtual host resource root", exc_info=True)
+
+		self._invoke_native_sync(native, configure)
 
 	def _configure_virtual_host_window(self, window, target_url: str, *, show: bool = False):
 		native = getattr(window, "native", None)
 		browser = getattr(native, "browser", None)
 		webview_control = getattr(browser, "webview", None)
 		if native is None or browser is None or webview_control is None:
-			core_logger.debug("WebView2 is unavailable for virtual host mapping")
+			core_logger.error("WebView2 is unavailable for virtual host mapping")
 			return
 
-		def load_mapped_url(core_webview):
-			self._map_virtual_hosts(core_webview)
-			browser.load_url(target_url)
+		def navigate(core_webview):
+			try:
+				self._map_virtual_hosts(core_webview)
+				core_webview.Navigate(target_url)
+			except Exception:
+				core_logger.error("Failed to navigate to virtual host resource: %s", target_url, exc_info=True)
+				return
+
 			if show:
 				window.show()
 
-		def on_initialized(_, args):
-			try:
-				if not args.IsSuccess:
-					core_logger.error("WebView2 initialization failed before virtual host mapping")
-					return
-				load_mapped_url(webview_control.CoreWebView2)
-			except Exception:
-				core_logger.error("Failed to configure WebView2 virtual host mapping", exc_info=True)
-			finally:
-				try:
-					webview_control.CoreWebView2InitializationCompleted -= on_initialized
-				except Exception:
-					pass
-				self._virtual_host_handlers.pop(window.uid, None)
-
 		def configure():
+			if native.IsDisposed:
+				return
 			try:
 				core_webview = webview_control.CoreWebView2
 			except Exception:
 				core_webview = None
+
 			if core_webview is not None:
-				load_mapped_url(core_webview)
+				navigate(core_webview)
 				return
+
+			def remove_handler(*_):
+				self._virtual_host_handlers.pop(window.uid, None)
+				try:
+					webview_control.CoreWebView2InitializationCompleted -= on_initialized
+				except Exception:
+					pass
+				try:
+					window.events.closed -= remove_handler
+				except Exception:
+					pass
+
+			def on_initialized(_, args):
+				remove_handler()
+				if not args.IsSuccess:
+					core_logger.error("WebView2 initialization failed before virtual host mapping")
+					return
+				navigate(webview_control.CoreWebView2)
+
 			self._virtual_host_handlers[window.uid] = on_initialized
+			window.events.closed += remove_handler
 			webview_control.CoreWebView2InitializationCompleted += on_initialized
 
 		try:
@@ -544,10 +612,10 @@ class MainWindow:
 
 	def _on_closed(self):
 		self.accent.stop()
+		self._virtual_host_handlers.clear()
 		with self._sync_lock:
 			self._pending_sync.clear()
 		self._sync_event.set()
-		self._virtual_host_handlers.clear()
 		self.events.closed.set()
 
 	def _dispatch_sync_values(self, values: dict[str, object]):
